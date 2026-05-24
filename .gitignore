@@ -57,3 +57,44 @@ vision-ui-dashboard-react-main (template for inspiration)/
 
 # Large model artifact (kept local, not tracked on GitHub)
 models/teacher-models/random_forest.pkl
+
+# Additional exclusions for security and cleanliness
+apps/backend/app/secrets/
+apps/backend/app/__pycache__/
+apps/backend/app/*.pyc
+apps/backend/app/*.pyo
+apps/backend/app/*.pyd
+apps/backend/app/.env
+apps/backend/app/.env.*
+apps/backend/app/credentials.json
+apps/backend/app/token.json
+apps/backend/app/*.db
+apps/backend/app/*.db-journal
+apps/backend/app/*.sqlite*
+apps/backend/app/*.db-wal
+apps/backend/app/*.db-shm
+services/ml-service/__pycache__/
+services/mailbox-service/__pycache__/
+scripts/__pycache__/
+database/phishguard.db
+database/phishguard_test.db*
+database/*.db
+database/*.db-journal
+database/*.sqlite*
+database/*.db-wal
+database/*.db-shm
+*.bak
+*.tmp
+*.swp
+*.swo
+*.orig
+*.backup
+*.lfs
+data/sample/*.bak
+data/sample/*.tmp
+data/sample/*.swp
+data/sample/*.swo
+data/sample/*.orig
+data/sample/*.backup
+data/sample/*.lfs
+!data/sample/*.json
