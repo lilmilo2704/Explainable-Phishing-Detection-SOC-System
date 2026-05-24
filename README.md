@@ -1,96 +1,115 @@
-# ??? Explainable Phishing Detection SOC System
+# Explainable Phishing Detection SOC Dashboard
+
+A SOC-friendly phishing detection and model-governance dashboard that combines machine learning, explainable AI, quarantine workflows, and analyst feedback into a practical security operations prototype.
+
+This project extends research on **global explainability** and **explanation latency reduction** in phishing email detection into an operational dashboard designed for SOC analysts, security managers, and model owners.
+
+---
 
 ## Project Overview
-This project demonstrates a **SOC-friendly phishing detection and model-governance dashboard** built with a practical security operations workflow in mind, inspired by my research about enhancing global explainability and reducing explanation latency in phishing email detection.
 
-The platform combines:
+Modern phishing detection models can achieve strong predictive performance, but they are often difficult for analysts to trust because their decisions are not transparent. This project addresses that gap by combining phishing classification with both **local explanations** for individual emails and **global explanations** for overall model behaviour.
 
-- **FastAPI backend** for scanning, case workflows, and model APIs
-- **React frontend** for SOC triage and investigation
-- **Random Forest / DNN teacher models** for phishing classification
-- **EBM / GAMI-Net surrogate models** for explainability
-- **SQLite persistence** for email, prediction, explanation, and feedback records
+The system demonstrates how a security team could:
 
-The environment is designed to simulate real SOC analyst operations:
+- Scan mailbox emails for phishing risk
+- Review suspicious emails through a SOC-style detection queue
+- Inspect model predictions and explanation evidence
+- Quarantine or release emails
+- Track analyst-confirmed feedback
+- Monitor model and surrogate explanation behaviour
+- Export validated feedback for future model improvement
 
-- detection queue triage
-- quarantine/release decisions
-- local explanation review per email
-- global model behavior monitoring
-- analyst-confirmed feedback governance
+The goal is not only to detect phishing emails, but to make the detection process understandable, reviewable, and suitable for security operations workflows.
 
-## ?? Full Project Documentation
-The complete project documentation, including architecture, workflows, MVP scope, and API contracts, is available in this repository:
+---
 
-- `PROJECT_CONTEXT.md`
-- `OUTCOME_REQUIREMENTS.md`
-- `IMPLEMENTATION_PLAN.md`
-- `docs/architecture/system-overview.md`
-- `docs/api/api-contracts.md`
-- `docs/dashboard/dashboard-pages.md`
-- `docs/dashboard/wireframe-notes.md`
-- `docs/product/mvp-scope.md`
+## Key Features
 
-## ?? Key Focus Areas
+### SOC Workflow
 
-- SOC-oriented phishing detection workflow design
-- Local and global explainability integration
-- Detection-to-quarantine-to-review operations
-- Human-in-the-loop feedback governance
-- Model pairing/version safety checks (teacher + surrogate)
-- Practical productization of research ML/XAI artifacts
+- Detection queue for suspicious and reviewed emails
+- Email investigation view for individual case analysis
+- Quarantine and release workflow
+- Feedback review process for false positives and false negatives
+- Analyst-oriented interface for triage and decision-making
 
-## ? Currently Usable Features
+### Machine Learning Detection
 
-- Backend API server with core SOC workflow endpoints
-- Dashboard pages for queue, investigation, quarantine, feedback, monitoring, settings
-- Local explanation panel integrated into email investigation
-- Model pair selection with compatibility checks
-- Feedback review and confirmed feedback export
-- Quarantine/release actions from UI and API
+- Random Forest teacher model
+- Deep Neural Network / MLP teacher model
+- Risk scoring and prediction output
+- Model-pair selection between teacher and surrogate models
+- Compatibility checks to reduce unsafe model/surrogate pairing
 
-## ?? Not Fully Working Yet / Placeholder Areas
+### Explainable AI
 
-- Monitoring performance/fidelity metrics are currently placeholder values
-- Global explanation fidelity outputs include fallback/static behavior
-- Mock mailbox flow has visibility inconsistency with current `/emails` filtering logic
-- Gmail integration is scaffolded but requires external credential setup
-- Microsoft 365 / Graph integration is not implemented yet
-- Production auth/RBAC/audit hardening is not implemented yet
+- Local explanation panel for individual email decisions
+- Global explanation dashboard for model-level behaviour
+- EBM and GAMI-Net surrogate models
+- Fidelity metrics for evaluating teacher-surrogate agreement
+- Error Fidelity support for analysing teacher-model failure behaviour
 
-## ?? Quick Start
+### Governance and Feedback
+
+- Analyst-confirmed feedback storage
+- False-positive and false-negative review flow
+- Confirmed feedback export for offline retraining
+- Model version and explanation snapshot tracking
+- Safer human-in-the-loop improvement process
+
+---
+
+## Technology Stack
 
 ### Backend
-```powershell
-cd apps/backend
-pip install -r requirements.txt
-python init_db.py
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
+
+- FastAPI
+- Python
+- SQLite
+- scikit-learn
+- EBM / InterpretML-compatible explanation workflow
+- GAMI-Net surrogate explanation workflow
 
 ### Frontend
-```powershell
-cd apps/frontend
-npm install
-npm run dev
-```
 
-- Frontend: `http://127.0.0.1:5173`
-- Backend: `http://127.0.0.1:8000`
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- SOC-style dashboard pages for triage, investigation, monitoring, and governance
 
-## ?? How to Use (Demo Flow)
+### Persistence
 
-1. Open the dashboard.
-2. Click `Sync Mailbox`.
-3. Review cases in `Detection Queue`.
-4. Open a case in `Email Investigation`.
-5. Check prediction, risk, and local explanation.
-6. Take analyst action: confirm phishing, quarantine, mark false positive, or release.
-7. Review and confirm feedback in `Feedback Review`.
-8. Export confirmed feedback for future offline model improvement.
-9. Check `Global Explanation` and `Model Monitoring` pages.
+SQLite is currently used for local prototype persistence, including:
 
-## ?? Notes
-This repository is intended to showcase hands-on SOC product engineering and explainable AI integration through a practical prototype.
+- Email records
+- Prediction records
+- Explanation records
+- Quarantine state
+- Analyst feedback
+- Model configuration metadata
 
-The docs listed above are the authoritative source for detailed requirements and architecture.
+---
+
+## System Architecture
+
+```text
+Mailbox / Mock Email Source
+        ↓
+Email Ingestion / Sync Flow
+        ↓
+Feature Extraction
+        ↓
+Teacher Model Prediction
+        ↓
+Decision Engine
+        ↓
+Explanation Service
+   ┌───────────────┬────────────────┐
+   ↓               ↓                ↓
+Local Explanation  Global Explanation Feedback Governance
+        ↓
+SOC Analyst Dashboard
+        ↓
+Quarantine / Release / Confirm Feedback
