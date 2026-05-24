@@ -1,0 +1,57 @@
+{
+  "model_name": "Random Forest",
+  "model_version": "rf_v1",
+  "surrogate_name": "EBM",
+  "surrogate_version": "ebm_rf_v1",
+  "accuracy_fidelity": 0.926,
+  "f1_fidelity": 0.928,
+  "error_fidelity": 0.7673,
+  "top_features": [
+    {
+      "feature": "max_url_length",
+      "importance": 0.31,
+      "human_summary": "Longer URLs generally increase phishing likelihood."
+    },
+    {
+      "feature": "sender_replyto_mismatch",
+      "importance": 0.24,
+      "human_summary": "Reply-to mismatch is a strong phishing indicator."
+    },
+    {
+      "feature": "suspicious_sender_domain",
+      "importance": 0.21,
+      "human_summary": "Domains impersonating known brands highly correlate with phishing."
+    },
+    {
+      "feature": "has_urgent_words",
+      "importance": 0.14,
+      "human_summary": "Urgent language is frequently used in phishing attacks."
+    },
+    {
+      "feature": "exclamation_count",
+      "importance": 0.08,
+      "human_summary": "High use of exclamation marks slightly increases risk."
+    }
+  ],
+  "failure_patterns": {
+    "false_positives": [
+      "Legitimate business emails with urgent wording and multiple links are sometimes misclassified as phishing.",
+      "Automated system alerts from unrecognized internal domains may trigger high risk scores."
+    ],
+    "false_negatives": [
+      "Phishing emails with clean-looking, compromised sender domains and short URLs are occasionally missed.",
+      "Spear-phishing lacking urgent language and containing no links (e.g. BEC requesting a reply) can evade detection."
+    ]
+  },
+  "effect_plots": [
+    {
+      "feature": "max_url_length",
+      "plot_path": "/static/explanations/ebm/max_url_length.png"
+    },
+    {
+      "feature": "sender_replyto_mismatch",
+      "plot_path": "/static/explanations/ebm/sender_replyto_mismatch.png"
+    }
+  ],
+  "generated_at": "2026-05-10T00:00:00Z"
+}

@@ -1,0 +1,1 @@
+### The files included in this folder (context-materials) are to be used for the purpose of understanding the context of the project, as this project is based on a research paper I conducted previously, not to build the project. DO NOT reference or include these files in the implementation plan.

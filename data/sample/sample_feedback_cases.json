@@ -1,0 +1,32 @@
+[
+  {
+    "id": "feedback_001",
+    "email_id": "email_001",
+    "prediction_id": "pred_001",
+    "original_prediction": "phishing",
+    "original_confidence": 0.94,
+    "user_feedback": "This is a legitimate supplier invoice.",
+    "analyst_label": "phishing",
+    "error_type": "true_positive",
+    "reason_category": "Analyst verified malicious attachment",
+    "review_status": "confirmed",
+    "added_to_improvement_dataset": true,
+    "created_at": "2026-05-19T11:10:00Z",
+    "reviewed_at": "2026-05-19T11:25:00Z"
+  },
+  {
+    "id": "feedback_002",
+    "email_id": "email_004",
+    "prediction_id": "pred_004",
+    "original_prediction": "phishing",
+    "original_confidence": 0.85,
+    "user_feedback": "This is an internal newsletter that got blocked.",
+    "analyst_label": "legitimate",
+    "error_type": "false_positive",
+    "reason_category": "Legitimate newsletter with many links",
+    "review_status": "confirmed",
+    "added_to_improvement_dataset": true,
+    "created_at": "2026-05-18T09:00:00Z",
+    "reviewed_at": "2026-05-18T10:15:00Z"
+  }
+]

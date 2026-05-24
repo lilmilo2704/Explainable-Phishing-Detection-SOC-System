@@ -1,0 +1,59 @@
+[
+  {
+    "id": "exp_local_001",
+    "email_id": "email_001",
+    "prediction_id": "pred_001",
+    "explainer_type": "SHAP",
+    "model_version": "rf_v1",
+    "human_summary": "This email was classified as phishing mainly because the reply-to address does not match the sender, the sender domain appears suspicious, and the email contains an unusually long URL.",
+    "top_features": [
+      {
+        "feature": "sender_replyto_mismatch",
+        "value": true,
+        "contribution": 0.24,
+        "direction": "increases_phishing_risk",
+        "human_reason": "The reply-to address does not match the sender address."
+      },
+      {
+        "feature": "max_url_length",
+        "value": 148,
+        "contribution": 0.18,
+        "direction": "increases_phishing_risk",
+        "human_reason": "The email contains an unusually long URL."
+      },
+      {
+        "feature": "has_urgent_words",
+        "value": true,
+        "contribution": 0.12,
+        "direction": "increases_phishing_risk",
+        "human_reason": "The message contains urgent or threatening language."
+      }
+    ],
+    "created_at": "2026-05-19T10:42:06Z"
+  },
+  {
+    "id": "exp_local_003",
+    "email_id": "email_003",
+    "prediction_id": "pred_003",
+    "explainer_type": "SHAP",
+    "model_version": "rf_v1",
+    "human_summary": "This email was classified as phishing because it originates from a newly registered domain resembling a legitimate service, requests credential verification, and contains links to an unrecognized external domain.",
+    "top_features": [
+      {
+        "feature": "suspicious_sender_domain",
+        "value": true,
+        "contribution": 0.35,
+        "direction": "increases_phishing_risk",
+        "human_reason": "The sender domain resembles a known brand but is not authentic."
+      },
+      {
+        "feature": "requests_credentials",
+        "value": true,
+        "contribution": 0.28,
+        "direction": "increases_phishing_risk",
+        "human_reason": "The email appears to request login credentials or verification."
+      }
+    ],
+    "created_at": "2026-05-18T14:30:06Z"
+  }
+]

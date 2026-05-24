@@ -1,0 +1,53 @@
+[
+  {
+    "id": "email_001",
+    "mailbox_message_id": "msg_abc123",
+    "subject": "Urgent invoice payment required",
+    "sender": "billing-support@example-security.com",
+    "sender_domain": "example-security.com",
+    "recipient": "employee@company.com",
+    "reply_to": "accounts.payments@gmail.com",
+    "received_at": "2026-05-19T10:42:00Z",
+    "body_preview": "Please review and pay the attached invoice immediately to avoid service interruption...",
+    "url_count": 3,
+    "attachment_count": 1,
+    "has_links": true,
+    "has_attachment": true,
+    "quarantine_status": "quarantined",
+    "review_status": "in_review"
+  },
+  {
+    "id": "email_002",
+    "mailbox_message_id": "msg_def456",
+    "subject": "Quarterly IT Security Update",
+    "sender": "it-security@company.com",
+    "sender_domain": "company.com",
+    "recipient": "all-employees@company.com",
+    "reply_to": "it-security@company.com",
+    "received_at": "2026-05-19T09:15:00Z",
+    "body_preview": "Here are the latest security updates and policy changes for Q2...",
+    "url_count": 1,
+    "attachment_count": 0,
+    "has_links": true,
+    "has_attachment": false,
+    "quarantine_status": "quarantined",
+    "review_status": "in_review"
+  },
+  {
+    "id": "email_003",
+    "mailbox_message_id": "msg_ghi789",
+    "subject": "Action Required: Verify your Office365 Account",
+    "sender": "admin-alert@office365-secure-update.com",
+    "sender_domain": "office365-secure-update.com",
+    "recipient": "employee@company.com",
+    "reply_to": "admin-alert@office365-secure-update.com",
+    "received_at": "2026-05-18T14:30:00Z",
+    "body_preview": "Your Office365 password is about to expire. Click here to verify your account and keep your current password...",
+    "url_count": 2,
+    "attachment_count": 0,
+    "has_links": true,
+    "has_attachment": false,
+    "quarantine_status": "quarantined",
+    "review_status": "in_review"
+  }
+]

@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+apps/frontend/node_modules/
+
+# Build artifacts
+apps/frontend/dist/
+*.log
+
+# Environment and local config
+.env
+.env.*
+!.env.example
+
+# Secrets and credentials
+secrets/
+apps/backend/secrets/
+**/credentials.json
+**/token.json
+
+# Databases and local runtime files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Exports and generated data
+data/exports/
+# Local inspiration template (do not track)
+vision-ui-dashboard-react-main (template for inspiration)/
+
+# Large model artifact (kept local, not tracked on GitHub)
+models/teacher-models/random_forest.pkl
