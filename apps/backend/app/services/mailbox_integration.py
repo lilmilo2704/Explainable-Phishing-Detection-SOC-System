@@ -5,7 +5,8 @@ import os
 import re
 import base64
 import hashlib
-from dataclasses import dataclass
+import html
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 from datetime import datetime, UTC
@@ -57,29 +58,11 @@ class MockMailboxProvider:
 
     def quarantine_message(self, mailbox_message_id: str) -> bool:
         rows = self._read()
-        changed = False
-        for row in rows:
-            if row.get("mailbox_message_id") == mailbox_message_id:
-                row["quarantine_status"] = "quarantined"
-                row["review_status"] = "in_review"
-                changed = True
-                break
-        if changed:
-            self._write(rows)
-        return changed
+        return any(row.get("mailbox_message_id") == mailbox_message_id for row in rows)
 
     def release_message(self, mailbox_message_id: str) -> bool:
         rows = self._read()
-        changed = False
-        for row in rows:
-            if row.get("mailbox_message_id") == mailbox_message_id:
-                row["quarantine_status"] = "released"
-                row["review_status"] = "reviewed"
-                changed = True
-                break
-        if changed:
-            self._write(rows)
-        return changed
+        return any(row.get("mailbox_message_id") == mailbox_message_id for row in rows)
 
 
 @dataclass
@@ -87,17 +70,55 @@ class GmailMailboxProvider:
     provider_name: str = "gmail"
     credentials_path: str | None = None
     token_path: str | None = None
-    review_label: str = "Phishing Review"
+    review_label: str | None = None
     user_id: str = "me"
+    configuration_source: str = field(init=False, default="unconfigured")
 
     def __post_init__(self):
+        provided_credentials = self.credentials_path
+        provided_token = self.token_path
+        env_credentials = os.getenv("GMAIL_CREDENTIALS_PATH")
+        env_token = os.getenv("GMAIL_TOKEN_PATH")
         root = Path(__file__).resolve().parents[4]
-        default_credentials = root / "secrets" / "gmail" / "credentials.json"
-        default_token = root / "secrets" / "gmail" / "token.json"
-        self.credentials_path = self.credentials_path or os.getenv(
-            "GMAIL_CREDENTIALS_PATH", str(default_credentials)
+        local_credentials = root / "secrets" / "gmail" / "credentials.json"
+        local_token = root / "secrets" / "gmail" / "token.json"
+
+        self.credentials_path = provided_credentials or env_credentials
+        self.token_path = provided_token or env_token
+        if provided_credentials or provided_token:
+            self.configuration_source = "explicit_provider_arguments"
+        elif env_credentials or env_token:
+            self.configuration_source = "environment"
+        elif local_credentials.exists() and local_token.exists():
+            # These conventional local files are gitignored and never exposed through API output.
+            self.credentials_path = str(local_credentials)
+            self.token_path = str(local_token)
+            self.configuration_source = "ignored_local_secrets"
+        self.review_label = self.review_label or os.getenv("GMAIL_REVIEW_LABEL", "Phishing Review")
+
+    def is_configured(self) -> bool:
+        return bool(
+            self.credentials_path
+            and self.token_path
+            and Path(self.credentials_path).exists()
+            and Path(self.token_path).exists()
         )
-        self.token_path = self.token_path or os.getenv("GMAIL_TOKEN_PATH", str(default_token))
+
+    def configuration_status(self) -> dict[str, Any]:
+        missing: list[str] = []
+        if not self.credentials_path:
+            missing.append("GMAIL_CREDENTIALS_PATH")
+        elif not Path(self.credentials_path).exists():
+            missing.append("gmail_credentials_file")
+        if not self.token_path:
+            missing.append("GMAIL_TOKEN_PATH")
+        elif not Path(self.token_path).exists():
+            missing.append("gmail_token_file")
+        return {
+            "configured": not missing,
+            "configuration_source": self.configuration_source,
+            "missing": missing,
+        }
 
     def _assert_configured(self) -> None:
         if not self.credentials_path:
@@ -153,9 +174,17 @@ class GmailMailboxProvider:
             return ""
 
     def _extract_parts(self, payload: dict) -> tuple[str, list[dict[str, str]], list[str]]:
-        body_chunks: list[str] = []
+        plain_chunks: list[str] = []
+        html_chunks: list[str] = []
         attachments: list[dict[str, str]] = []
-        urls: list[str] = []
+
+        def clean_text(text: str) -> str:
+            text = html.unescape(text)
+            text = re.sub(r"<script.*?>.*?</script>", " ", text, flags=re.IGNORECASE | re.DOTALL)
+            text = re.sub(r"<style.*?>.*?</style>", " ", text, flags=re.IGNORECASE | re.DOTALL)
+            text = re.sub(r"<[^>]+>", " ", text)
+            text = text.replace("=\n", "").replace("=\r\n", "")
+            return re.sub(r"\s+", " ", text.replace("\n", " ").replace("\r", " ")).strip()
 
         def walk(part: dict):
             mime = (part.get("mimeType") or "").lower()
@@ -175,14 +204,15 @@ class GmailMailboxProvider:
             if data and mime in {"text/plain", "text/html"}:
                 text = self._decode_b64(data)
                 if text:
-                    body_chunks.append(text)
-                    urls.extend(re.findall(r"https?://[^\s<>\"]+", text))
+                    (plain_chunks if mime == "text/plain" else html_chunks).append(text)
 
             for sub in part.get("parts", []) or []:
                 walk(sub)
 
         walk(payload or {})
-        full_text = "\n".join(body_chunks)
+        selected_chunks = plain_chunks or html_chunks
+        full_text = clean_text(" ".join(selected_chunks))
+        urls = list(dict.fromkeys(re.findall(r"(?:https?://|www\.)[^\s\"'<>]+", full_text)))
         return full_text, attachments, urls
 
     @staticmethod
@@ -250,7 +280,7 @@ class GmailMailboxProvider:
                 subject = self._header(headers, "Subject")
                 sender = self._header(headers, "From")
                 recipient = self._header(headers, "To")
-                reply_to = self._header(headers, "Reply-To") or self._extract_email_addr(sender)
+                reply_to = self._header(headers, "Reply-To")
                 date_raw = self._header(headers, "Date")
                 internal_date = msg.get("internalDate")
 
@@ -258,9 +288,14 @@ class GmailMailboxProvider:
                 preview = body_text.strip().replace("\n", " ")[:400]
                 email_hash = hashlib.sha1(f"gmail::{msg_id}".encode("utf-8")).hexdigest()[:12]
                 email_id = f"gmail_{email_hash}"
+                fingerprint_input = json.dumps(
+                    {"subject": subject, "sender": sender, "reply_to": reply_to, "body": body_text, "urls": urls},
+                    sort_keys=True,
+                )
                 output.append(
                     {
                         "id": email_id,
+                        "mailbox_source": "gmail",
                         "mailbox_message_id": msg_id,
                         "subject": subject,
                         "sender": sender,
@@ -269,6 +304,10 @@ class GmailMailboxProvider:
                         "reply_to": reply_to,
                         "received_at": self._iso_date(date_raw, internal_date),
                         "body_preview": preview,
+                        "body": body_text,
+                        "urls": urls,
+                        "attachments": attachments,
+                        "content_fingerprint": hashlib.sha256(fingerprint_input.encode("utf-8")).hexdigest(),
                         "url_count": len(urls),
                         "attachment_count": len(attachments),
                         "has_links": len(urls) > 0,
@@ -311,7 +350,7 @@ class GmailMailboxProvider:
                 .modify(
                     userId=self.user_id,
                     id=mailbox_message_id,
-                    body={"addLabelIds": [review_label_id], "removeLabelIds": []},
+                    body={"addLabelIds": [review_label_id], "removeLabelIds": ["INBOX"]},
                 )
                 .execute()
             )
@@ -329,7 +368,7 @@ class GmailMailboxProvider:
                 .modify(
                     userId=self.user_id,
                     id=mailbox_message_id,
-                    body={"addLabelIds": [], "removeLabelIds": [review_label_id]},
+                    body={"addLabelIds": ["INBOX"], "removeLabelIds": [review_label_id]},
                 )
                 .execute()
             )
@@ -338,8 +377,17 @@ class GmailMailboxProvider:
             return False
 
 
-def get_mailbox_provider(provider: str) -> MailboxProvider:
-    provider = (provider or "mock").lower()
+def get_default_mailbox_provider_name() -> str:
+    configured = os.getenv("MAILBOX_PROVIDER", "").strip().lower()
+    if configured == "mock":
+        return "mock"
+    if GmailMailboxProvider().is_configured():
+        return "gmail"
+    return "mock"
+
+
+def get_mailbox_provider(provider: str | None) -> MailboxProvider:
+    provider = (provider or get_default_mailbox_provider_name()).lower()
     if provider == "mock":
         return MockMailboxProvider()
     if provider == "gmail":

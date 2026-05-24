@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   fetchActiveModelConfig,
+  fetchModelReadiness,
   fetchModelRegistry,
   saveActiveModelConfig,
 } from '../api';
 import { ActionButton, ErrorState, LoadingState, PageHeader, Panel, SectionHeader, StatusBadge } from '../components/ui';
 import { VuiBox, VuiInput } from '../components/vision';
+import ModelReadinessPanel from '../components/ModelReadinessPanel';
 
 const Settings = () => {
   const [registry, setRegistry] = useState({ teachers: [], surrogates: [] });
@@ -15,18 +17,21 @@ const Settings = () => {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [readiness, setReadiness] = useState(null);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [reg, activeCfg] = await Promise.all([
+        const [reg, activeCfg, readinessData] = await Promise.all([
           fetchModelRegistry(),
           fetchActiveModelConfig(),
+          fetchModelReadiness(),
         ]);
         setRegistry(reg);
         setActive(activeCfg);
         setTeacherId(activeCfg.teacher_model_id);
         setSurrogateId(activeCfg.surrogate_model_id);
+        setReadiness(readinessData);
       } catch (e) {
         setError(e.message || 'Failed to load settings');
       } finally {
@@ -77,6 +82,7 @@ const Settings = () => {
         surrogate_model_id: surrogateId,
       });
       setActive(updated);
+      setReadiness(await fetchModelReadiness());
       setMessage('Model configuration saved successfully.');
     } catch (e) {
       setError(e.message || 'Failed to save model configuration.');
@@ -89,6 +95,7 @@ const Settings = () => {
     <VuiBox className="page-content">
       <PageHeader title="Settings" description="Controlled model-pair configuration for detection and global explanation display." />
       {error ? <ErrorState message={error} /> : null}
+      <ModelReadinessPanel readiness={readiness} />
       <Panel style={{ marginBottom: '16px' }}>
         <SectionHeader title="Model Configuration" subtitle="Select a compatible detector and global surrogate model pair" />
         <div className="governance-note" style={{ marginBottom: '12px' }}>

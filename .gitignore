@@ -4,6 +4,12 @@ __pycache__/
 *.pyo
 *.pyd
 .pytest_cache/
+pytest-cache-files-*/
+database/pytest-temp/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
 # Virtual environments
 .venv/
@@ -34,6 +40,8 @@ apps/backend/secrets/
 *.db-journal
 *.sqlite
 *.sqlite3
+*.db-wal
+*.db-shm
 
 # OS/editor
 .DS_Store
@@ -43,6 +51,7 @@ Thumbs.db
 
 # Exports and generated data
 data/exports/
+.recovery/
 # Local inspiration template (do not track)
 vision-ui-dashboard-react-main (template for inspiration)/
 

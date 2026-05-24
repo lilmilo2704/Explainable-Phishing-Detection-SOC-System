@@ -21,8 +21,8 @@ const Quarantine = () => {
       try { await load(); } catch { setError('Unable to load quarantine data. Retry.'); } finally { setLoading(false); }
     };
     boot();
-    const timer = setInterval(load, 15000);
-    return () => clearInterval(timer);
+    window.addEventListener('phishguard:mailbox-synced', load);
+    return () => window.removeEventListener('phishguard:mailbox-synced', load);
   }, []);
 
   const quarantined = useMemo(() => emails.filter((e) => e.quarantine_status === 'quarantined'), [emails]);

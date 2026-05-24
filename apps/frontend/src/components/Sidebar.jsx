@@ -23,8 +23,9 @@ const Sidebar = ({ mobileOpen = false, onClose }) => {
     setSyncing(true);
     setSyncNote('');
     try {
-      const result = await syncMailbox({ provider: 'mock', limit: 200 });
-      setSyncNote(`Synced ${result.imported} emails`);
+      const result = await syncMailbox({ provider: 'gmail', limit: 25, actor: 'analyst' });
+      setSyncNote(`Scanned ${result.scanned}; skipped ${result.skipped}; failed ${result.failed}`);
+      window.dispatchEvent(new CustomEvent('phishguard:mailbox-synced', { detail: result }));
     } catch {
       setSyncNote('Sync failed');
     } finally {
@@ -80,11 +81,11 @@ const Sidebar = ({ mobileOpen = false, onClose }) => {
       <VuiBox className="sidebar-footer">
         <GradientBorder>
           <VuiBox className="sidebar-operation-card">
-            <VuiTypography variant="caption" color="text">Mock mailbox source</VuiTypography>
-            <VuiTypography variant="button" fontWeight="bold">Offline Review Feed</VuiTypography>
+            <VuiTypography variant="caption" color="text">Gmail prototype</VuiTypography>
+            <VuiTypography variant="button" fontWeight="bold">Manual Sync Only</VuiTypography>
             <VuiButton color="info" variant="gradient" className="sync-button" onClick={handleSync} disabled={syncing}>
               <RefreshCcw size={16} />
-              {syncing ? 'Syncing...' : 'Sync Mailbox'}
+              {syncing ? 'Syncing...' : 'Sync Gmail'}
             </VuiButton>
             {syncNote ? <VuiTypography variant="caption" color="text" className="sync-note">{syncNote}</VuiTypography> : null}
           </VuiBox>

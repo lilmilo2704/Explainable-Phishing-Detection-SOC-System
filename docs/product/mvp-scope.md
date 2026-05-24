@@ -2,9 +2,9 @@
 
 ## Purpose
 
-This document defines the scope of the first minimum viable product for the explainable phishing detection dashboard.
+This document defines the current live Gmail prototype scope for the explainable phishing detection dashboard.
 
-The MVP should prove the product workflow before implementing real mailbox integration or retraining.
+The offline/mock workflow has been retained for test data, while the current prototype now proves a manually triggered Gmail mailbox workflow. It does not include automatic retraining.
 
 ---
 
@@ -13,6 +13,7 @@ The MVP should prove the product workflow before implementing real mailbox integ
 The MVP should demonstrate that the product can:
 
 ```text
+manually sync Gmail emails
 show scanned emails
 show phishing predictions
 show risk levels
@@ -20,7 +21,7 @@ show quarantine status
 show local explanations
 show global explanation metrics
 support feedback review
-simulate analyst decision workflow
+support analyst decision and audit workflow
 ```
 
 The MVP should focus on dashboard experience and system flow, not production infrastructure.
@@ -29,7 +30,7 @@ The MVP should focus on dashboard experience and system flow, not production inf
 
 ## MVP Must Include
 
-### 1. Mock Email Dataset
+### 1. Sample Email Dataset
 
 Use sample email records stored locally.
 
@@ -123,7 +124,7 @@ Global explanations should include:
 
 ---
 
-### 5. Mock Feedback Cases
+### 5. Sample Feedback Cases
 
 Use sample feedback records.
 
@@ -141,7 +142,7 @@ Feedback cases should include:
 - error type
 - review status
 - explanation snapshot
-- added to retraining flag
+- analyst validation status
 
 ---
 
@@ -180,7 +181,7 @@ POST /emails/{id}/release
 GET /monitoring/model-health
 ```
 
-For MVP, these endpoints can read from local JSON files.
+For local test/demo operation, these endpoints can use sample data. Live Gmail sync stores local SQLite state.
 
 ---
 
@@ -227,15 +228,15 @@ Do not retrain models.
 
 ## MVP Mailbox Integration
 
-Use mock mailbox only.
+Use Gmail as the live prototype mailbox provider when credentials are configured. Sync is manually triggered from the dashboard; the mock mailbox remains a local testing adapter.
 
 Recommended location:
 
 ```text
-services/mailbox-service/mock-mailbox/
+apps/backend/app/services/mailbox_integration.py
 ```
 
-Do not implement Gmail or Microsoft 365 yet.
+No continuous/background sync is implemented. Quarantine is reversible and must never delete a message.
 
 ---
 
@@ -258,8 +259,7 @@ The MVP should not support automatic model updating.
 
 Do not build these in the first MVP:
 
-- real Gmail integration
-- real Microsoft 365 integration
+- additional mailbox providers
 - automatic model updating
 - production authentication
 - production deployment

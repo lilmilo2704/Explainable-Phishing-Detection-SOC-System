@@ -1,6 +1,4 @@
 from fastapi.testclient import TestClient
-import os
-
 from app.main import app
 
 
@@ -21,7 +19,7 @@ def _create_feedback_for_email(email_id: str):
 
 
 def test_phase4_review_derives_error_type_and_updates_monitoring():
-    emails = client.get("/emails").json()["items"]
+    emails = client.get("/emails?source=mock").json()["items"]
     target = next((e for e in emails if e.get("prediction") == "phishing"), emails[0])
     fb_id = _create_feedback_for_email(target["id"])
 
@@ -32,28 +30,25 @@ def test_phase4_review_derives_error_type_and_updates_monitoring():
             "reason_category": "legitimate_business_email",
             "review_status": "confirmed",
             "added_to_improvement_dataset": True,
+            "actor": "analyst",
         },
     )
     assert review.status_code == 200
 
-    all_feedback = client.get("/feedback").json()
+    all_feedback = client.get("/feedback?source=mock").json()
     updated = next((f for f in all_feedback if f["id"] == fb_id), None)
     assert updated is not None
     assert updated["error_type"] == "false_positive"
     assert updated["review_status"] == "confirmed"
-    assert updated["added_to_improvement_dataset"] is True
+    assert updated["added_to_improvement_dataset"] is False
 
-    health = client.get("/monitoring/model-health")
+    health = client.get("/monitoring/model-health?source=mock")
     assert health.status_code == 200
     body = health.json()
     assert body["confirmed_feedback"] >= 1
     assert body["false_positives"] >= 1
 
 
-def test_phase4_export_confirmed_feedback():
+def test_phase4_export_is_disabled_for_prototype():
     res = client.post("/feedback/export-confirmed")
-    assert res.status_code == 200
-    data = res.json()
-    assert data["status"] == "success"
-    assert data["format"] == "json"
-    assert os.path.exists(data["export_path"])
+    assert res.status_code == 409

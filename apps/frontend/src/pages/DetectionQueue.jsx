@@ -25,8 +25,8 @@ const DetectionQueue = () => {
       }
     };
     loadData();
-    const timer = setInterval(loadData, 15000);
-    return () => clearInterval(timer);
+    window.addEventListener('phishguard:mailbox-synced', loadData);
+    return () => window.removeEventListener('phishguard:mailbox-synced', loadData);
   }, []);
 
   const filtered = useMemo(() => {
@@ -46,9 +46,9 @@ const DetectionQueue = () => {
 
   return (
     <VuiBox className="page-content">
-      <PageHeader title="Detection Queue" description="Triage scored messages, evidence summaries, and current analyst review status." />
+      <PageHeader title="Detection Queue" description="Live Gmail messages scanned through the manually triggered mailbox workflow." />
       <Panel>
-        <SectionHeader title="Review Queue" subtitle="Filtered list of phishing detections and analyst review cases" />
+        <SectionHeader title="Gmail Review Queue" subtitle="Filtered list of scanned Gmail detections and analyst review cases" />
         <FilterBar>
           <VuiInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search sender or subject" />
           <VuiInput component="select" value={risk} onChange={(e) => setRisk(e.target.value)}>
@@ -70,7 +70,7 @@ const DetectionQueue = () => {
         <DataTable
           rows={filtered.slice(0, 100)}
           onRowClick={(row) => navigate(`/investigation/${row.id}`)}
-          emptyText="No detections match the current filters."
+          emptyText={emails.length === 0 ? 'No Gmail messages scanned yet. Press Sync Gmail to scan your inbox.' : 'No detections match the current filters.'}
           columns={[
             { key: 'select', label: '', render: () => <input type="checkbox" aria-label="Select case" onClick={(event) => event.stopPropagation()} /> },
             { key: 'case_id', label: 'Case ID', render: (r) => `CASE-${String(r.id || '').toUpperCase()}` },
@@ -83,7 +83,7 @@ const DetectionQueue = () => {
             { key: 'review_status', label: 'Review Status', render: (r) => <StatusBadge status={r.review_status || 'pending_review'} /> },
             { key: 'action', label: 'Action Taken', render: (r) => <StatusBadge status={r.quarantine_status || 'none'} /> },
             { key: 'analyst', label: 'Assigned Analyst', render: () => 'Unassigned' },
-            { key: 'explanation', label: 'Top Explanation Factors', render: (r) => r.explanation_summary || 'Reply-to mismatch, suspicious domain' },
+            { key: 'explanation', label: 'Top Explanation Factors', render: (r) => r.explanation_summary || 'Open case for explanation details' },
           ]}
         />
       </Panel>

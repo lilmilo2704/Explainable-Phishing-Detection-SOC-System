@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { fetchEmailDetail, quarantineEmail, releaseEmail, submitFeedback, reviewFeedback } from '../api';
 import LocalExplanationPanel from '../components/LocalExplanationPanel';
-import { ActionButton, ErrorState, LoadingState, PageHeader, Panel, RiskBadge, SectionHeader, StatusBadge } from '../components/ui';
+import { ActionButton, ErrorState, LoadingState, PageHeader, Panel, RiskBadge, SectionHeader, StatusBadge, StatusBanner } from '../components/ui';
 import { VuiBox } from '../components/vision';
 
 const EmailInvestigation = () => {
@@ -36,7 +36,8 @@ const EmailInvestigation = () => {
         error_type: null,
         reason_category: reasonCategory,
         review_status: 'confirmed',
-        added_to_improvement_dataset: true,
+        added_to_improvement_dataset: false,
+        actor: 'analyst',
       });
       if (analystLabel === 'phishing') {
         await quarantineEmail(email.id);
@@ -76,6 +77,11 @@ const EmailInvestigation = () => {
   return (
     <VuiBox className="page-content">
       <PageHeader title="Email Investigation" description="Review model evidence and take a reversible analyst action." right={<StatusBadge status={email.review_status || 'pending_review'} />} />
+      {pd.trusted_prediction === false ? (
+        <StatusBanner tone="warning" title="Analyst review required">
+          The current model pipeline is not validated for trusted automatic decisions. Treat this result as shadow-mode review evidence only.
+        </StatusBanner>
+      ) : null}
       <VuiBox className="investigation-layout">
         <VuiBox style={{ display: 'grid', gap: 16 }}>
           <Panel>

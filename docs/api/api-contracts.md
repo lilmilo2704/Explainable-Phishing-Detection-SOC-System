@@ -15,7 +15,7 @@ The API should support a SOC-friendly phishing detection dashboard that can:
 - support analyst feedback review
 - support model monitoring and governance
 
-For the first MVP, these APIs may return mock/sample data. Later, the same contracts should connect to the real database, model service, and mailbox integration.
+For the live Gmail prototype, these APIs store local operational state after manually initiated Gmail sync. Mock/sample data remains available for testing.
 
 ---
 
@@ -159,7 +159,7 @@ Represents human-in-the-loop review of a prediction.
   "error_type": "false_positive",
   "reason_category": "legitimate business email with urgent wording",
   "review_status": "confirmed",
-  "added_to_improvement_dataset": true,
+  "added_to_improvement_dataset": false,
   "created_at": "2026-05-19T11:10:00Z",
   "reviewed_at": "2026-05-19T11:25:00Z"
 }
@@ -208,6 +208,8 @@ Response:
 ```http
 GET /emails
 ```
+
+For the live Gmail prototype, this endpoint defaults to the configured mailbox provider. When Gmail is configured, demo/mock records are hidden from the ordinary Detection Queue. Use `?source=mock` only for local fixture testing, or `?source=all` for administrative inspection.
 
 Query parameters:
 
@@ -389,7 +391,8 @@ Request:
   "error_type": "false_positive",
   "reason_category": "legitimate business email with urgent wording",
   "review_status": "confirmed",
-  "added_to_improvement_dataset": true
+  "added_to_improvement_dataset": false,
+  "actor": "analyst"
 }
 ```
 
@@ -421,7 +424,37 @@ Releases the email from quarantine after analyst approval.
 GET /monitoring/model-health
 ```
 
-Returns current model and surrogate health metrics.
+Returns separate `research_benchmark` fidelity metrics and database-calculated `live_operational` counts. It must not present benchmark values as live Gmail accuracy.
+
+---
+
+### Model Readiness
+
+```http
+GET /monitoring/model-readiness
+```
+
+Reports whether teacher/surrogate artifacts, the fitted training preprocessor, and exact processed feature order are available for trusted live prediction. `feature_order_source: "fitted_surrogate_feature_names_in_"` indicates that the exact order was recovered and matched to the active surrogate, while `preprocessor_loaded: false` still blocks trusted live decisions. If unsafe, email scans are recorded as `needs_review` rather than silently treated as safe.
+
+---
+
+### Manual Gmail Sync Status
+
+```http
+GET /mailbox/sync-status
+```
+
+Returns the last manually initiated sync result, including scanned, skipped and failed message counts.
+
+---
+
+### Audit Log
+
+```http
+GET /audit
+```
+
+Returns quarantine, release, feedback-review, and model-switch audit entries with actor, state transition, model version, and explanation version references.
 
 ---
 

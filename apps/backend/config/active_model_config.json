@@ -1,4 +1,4 @@
 {
-  "teacher_model_id": "deep_neural_net_v1",
-  "surrogate_model_id": "ebm_deep_neural_net_v1"
+  "teacher_model_id": "random_forest_v1",
+  "surrogate_model_id": "ebm_random_forest_v1"
 }

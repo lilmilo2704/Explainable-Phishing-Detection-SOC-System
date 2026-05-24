@@ -422,6 +422,31 @@ body {
 input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
 
 .state { border: 1px dashed var(--border); border-radius: var(--radius); padding: 24px; color: var(--text-2); text-align: center; }
+.skeleton-lines { display: grid; gap: 7px; max-width: 260px; margin: 16px auto 0; }
+.skeleton-lines span { height: 8px; border-radius: 999px; background: var(--bg-2); animation: skeleton-pulse 1.2s ease-in-out infinite; }
+.skeleton-lines span:nth-child(2) { width: 78%; }
+.skeleton-lines span:nth-child(3) { width: 55%; }
+@keyframes skeleton-pulse { 50% { opacity: .42; } }
+
+.status-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 16px;
+  border: 1px solid var(--status-info-border);
+  border-radius: var(--radius);
+  background: var(--status-info-bg);
+  color: var(--status-info-text);
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.status-banner-success { background: var(--status-success-bg); border-color: var(--status-success-border); color: var(--status-success-text); }
+.status-banner-warning { background: var(--status-warning-bg); border-color: var(--status-warning-border); color: var(--status-warning-text); }
+.status-banner-error { background: var(--status-error-bg); border-color: var(--status-error-border); color: var(--status-error-text); }
+.readiness-grid { margin: 12px 0; }
+.subtle-text { color: var(--text-secondary); font-size: 0.84rem; margin: 4px 0 12px; }
+.warning-list { color: var(--text-2); font-size: 12px; line-height: 1.55; padding-left: 18px; margin: 10px 0 0; }
 
 .vui-button, .btn {
   border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;

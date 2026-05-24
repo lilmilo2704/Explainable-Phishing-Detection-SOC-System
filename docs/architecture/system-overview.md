@@ -12,7 +12,7 @@ The product turns an existing research pipeline into an operational SOC-style da
 
 The system is:
 
-> A SOC-friendly explainable phishing detection and model-governance dashboard for business mailboxes.
+> A SOC-friendly explainable phishing detection and model-governance dashboard implemented as a live Gmail prototype.
 
 The product should not be treated as only a phishing classifier. Its main value is:
 
@@ -30,7 +30,7 @@ phishing detection
 ## High-Level Architecture
 
 ```text
-Mailbox / Mock Mailbox
+Gmail Mailbox / Mock Test Mailbox
         ↓
 Mailbox Service
         ↓
@@ -153,10 +153,9 @@ services/mailbox-service/
 
 Purpose:
 
-- read emails from mock mailbox first
-- later support Gmail API
-- later support Microsoft Graph / Outlook
-- simulate or perform quarantine/release actions
+- read emails from Gmail through manually initiated sync
+- retain a mock mailbox adapter for deterministic tests
+- apply reversible Gmail quarantine/release label actions
 - provide normalized email objects to the backend
 
 Development order:
@@ -164,7 +163,7 @@ Development order:
 ```text
 mock mailbox
 → Gmail prototype
-→ Microsoft 365 / Outlook integration
+→ other mailbox providers (future, outside this Gmail prototype)
 ```
 
 ---
@@ -257,7 +256,7 @@ ML-service functions
 Existing .pkl model artifacts
 ```
 
-Then add real mailbox integration later:
+Current live mailbox prototype:
 
 ```text
 React frontend
@@ -266,7 +265,7 @@ FastAPI backend
         ↓
 Mailbox service
         ↓
-Gmail / Microsoft Graph
+Gmail API (manual sync only)
 ```
 
 ---
@@ -309,9 +308,9 @@ Every prediction should store:
 
 The trained model expects processed feature vectors, not raw emails. The system must reproduce the same feature extraction and preprocessing used during training.
 
-### Mock First
+### Gmail Prototype Stage
 
-Real mailbox integration should not be built before the mock mailbox and offline dashboard flow work.
+The mock mailbox and offline workflow remain available for testing. The current product stage adds manual Gmail sync, reversible review-label quarantine, audit logging, and fail-safe review states.
 
 ---
 
@@ -319,7 +318,7 @@ Real mailbox integration should not be built before the mock mailbox and offline
 
 The first MVP should include:
 
-- mock emails
+- Gmail manual sync with mock test fixtures
 - mock predictions
 - mock local explanations
 - mock global explanations
@@ -328,11 +327,11 @@ The first MVP should include:
 - Email Investigation page
 - Global Explanation page
 - Feedback Review page
-- quarantine simulation
+- reversible Gmail quarantine/release workflow
 
 The MVP should not include:
 
-- real Gmail/Outlook integration
+- background mailbox synchronisation
 - automatic model updating
 - production deployment
 - full enterprise authentication

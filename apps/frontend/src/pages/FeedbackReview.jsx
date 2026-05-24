@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { exportConfirmedFeedback, fetchFeedback, reviewFeedback } from '../api';
+import { fetchFeedback, reviewFeedback } from '../api';
 import { ActionButton, DataTable, ErrorState, LoadingState, PageHeader, Panel, SectionHeader, StatusBadge } from '../components/ui';
 import { VuiBox } from '../components/vision';
 
@@ -9,7 +9,6 @@ const FeedbackReview = () => {
   const [error, setError] = useState('');
   const [selectedCase, setSelectedCase] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [exportMessage, setExportMessage] = useState('');
 
   const load = async () => {
     const data = await fetchFeedback();
@@ -22,6 +21,8 @@ const FeedbackReview = () => {
       try { await load(); } catch { setError('Unable to load feedback cases. Retry.'); } finally { setLoading(false); }
     };
     loadData();
+    window.addEventListener('phishguard:mailbox-synced', load);
+    return () => window.removeEventListener('phishguard:mailbox-synced', load);
   }, []);
 
   const pendingCount = useMemo(() => feedback.filter((f) => (f.review_status || 'pending') !== 'confirmed').length, [feedback]);
@@ -35,18 +36,12 @@ const FeedbackReview = () => {
         error_type: null,
         reason_category: reason,
         review_status: 'confirmed',
-        added_to_improvement_dataset: true,
+        added_to_improvement_dataset: false,
+        actor: 'analyst',
       });
       const updated = await load();
       setSelectedCase(updated.find((f) => f.id === selectedCase.id) || null);
     } finally { setBusy(false); }
-  };
-
-  const handleExport = async () => {
-    setBusy(true); setExportMessage('');
-    try { const result = await exportConfirmedFeedback(); setExportMessage(`Confirmed feedback exported: ${result.export_path}`); }
-    catch { setExportMessage('Export failed.'); }
-    finally { setBusy(false); }
   };
 
   if (loading) return <VuiBox className="page-content"><LoadingState message="Loading feedback review queue..." /></VuiBox>;
@@ -87,8 +82,7 @@ const FeedbackReview = () => {
               <div style={{ display: 'grid', gap: 8 }}>
                 <ActionButton variant="danger" disabled={busy} onClick={() => handleReview('phishing', 'confirmed_malicious')}>Confirm Phishing</ActionButton>
                 <ActionButton variant="success" disabled={busy} onClick={() => handleReview('legitimate', 'false_positive')}>Confirm Legitimate</ActionButton>
-                <ActionButton variant="warning" disabled={busy} onClick={handleExport}>Export Confirmed Feedback</ActionButton>
-                {exportMessage ? <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{exportMessage}</div> : null}
+                <div className="governance-note">Confirmed feedback updates live monitoring only. Retraining-data export and automatic retraining are disabled for this prototype.</div>
               </div>
             </>
           ) : (

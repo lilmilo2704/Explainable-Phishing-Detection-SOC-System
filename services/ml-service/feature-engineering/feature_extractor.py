@@ -36,6 +36,11 @@ SUSPICIOUS_URL_TOKEN_PATTERN = re.compile(
     flags=re.IGNORECASE,
 )
 IPV4_PATTERN = re.compile(r"(?:\d{1,3}\.){3}\d{1,3}")
+DATASET_URGENT_TERMS = (
+    "urgent", "immediately", "asap", "action required", "important",
+    "verify", "suspended", "locked", "update now", "click below",
+    "confirm now", "reset password", "security alert",
+)
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────
@@ -189,12 +194,19 @@ def extract_raw_features(email: dict) -> dict:
     body = str(email.get("body") or "")
     sender_email = str(email.get("sender_email") or email.get("sender") or "")
     reply_to = str(email.get("reply_to") or "")
-    urls: list = email.get("urls") or []
+    urls: list = list(dict.fromkeys(str(url).strip() for url in (email.get("urls") or []) if str(url).strip()))
     attachments: list = email.get("attachments") or []
 
     sender_domain = _extract_domain_from_email(sender_email)
     replyto_domain = _extract_domain_from_email(reply_to)
     sender_localpart = _extract_localpart_from_email(sender_email)
+    dataset_urgent_flag = int(any(term in body.lower() for term in DATASET_URGENT_TERMS))
+    dataset_replyto_mismatch = int(
+        sender_domain != "unknown"
+        and replyto_domain != "unknown"
+        and sender_domain != replyto_domain
+    )
+    dataset_suspicious_sender = int(bool(re.search(r"\d|secure|verify|update|login", sender_email.lower())))
 
     url_feats = _build_url_features(urls)
     att_feats = _build_attachment_features(attachments)
@@ -241,14 +253,15 @@ def extract_raw_features(email: dict) -> dict:
         "sender_domain_len": len(sender_domain),
         "replyto_domain_len": len(replyto_domain),
         # passthrough / pre-computed flags
-        "num_links": int(email.get("num_links") or email.get("url_count") or 0),
-        "has_links": int(bool(email.get("has_links"))),
-        "num_attachments": int(email.get("num_attachments") or email.get("attachment_count") or 0),
-        "has_attachment": int(bool(email.get("has_attachment"))),
-        "has_urgent_words": int(bool(email.get("has_urgent_words"))),
-        "sender_replyto_mismatch": int(bool(email.get("sender_replyto_mismatch"))),
-        "suspicious_sender_domain": int(bool(email.get("suspicious_sender_domain"))),
-        "suspicious_attachment_type": int(bool(email.get("suspicious_attachment_type"))),
+        "num_links": len(urls),
+        "has_links": int(bool(urls)),
+        # These attachment passthrough fields were constant zero in the training dataset.
+        "num_attachments": 0,
+        "has_attachment": 0,
+        "has_urgent_words": dataset_urgent_flag,
+        "sender_replyto_mismatch": dataset_replyto_mismatch,
+        "suspicious_sender_domain": dataset_suspicious_sender,
+        "suspicious_attachment_type": 0,
     }
 
     raw.update(url_feats)

@@ -1,16 +1,18 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import { DashboardLayout, Footer } from './components/vision';
-import Overview from './pages/Overview';
-import DetectionQueue from './pages/DetectionQueue';
-import Quarantine from './pages/Quarantine';
-import EmailInvestigation from './pages/EmailInvestigation';
-import GlobalExplanation from './pages/GlobalExplanation';
-import FeedbackReview from './pages/FeedbackReview';
-import ModelMonitoring from './pages/ModelMonitoring';
-import Settings from './pages/Settings';
+import { LoadingState } from './components/ui';
+
+const Overview = lazy(() => import('./pages/Overview'));
+const DetectionQueue = lazy(() => import('./pages/DetectionQueue'));
+const Quarantine = lazy(() => import('./pages/Quarantine'));
+const EmailInvestigation = lazy(() => import('./pages/EmailInvestigation'));
+const GlobalExplanation = lazy(() => import('./pages/GlobalExplanation'));
+const FeedbackReview = lazy(() => import('./pages/FeedbackReview'));
+const ModelMonitoring = lazy(() => import('./pages/ModelMonitoring'));
+const Settings = lazy(() => import('./pages/Settings'));
 
 function DashboardShell() {
   const location = useLocation();
@@ -32,6 +34,7 @@ function DashboardShell() {
         <Topbar onOpenNavigation={() => setMobileNavOpen(true)} />
         <div className="route-stage">
           <div className="page-route" key={location.pathname}>
+          <Suspense fallback={<LoadingState message="Loading workspace..." />}>
           <Routes>
             <Route path="/" element={<Overview />} />
             <Route path="/queue" element={<DetectionQueue />} />
@@ -43,6 +46,7 @@ function DashboardShell() {
             <Route path="/model-monitoring" element={<ModelMonitoring />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
+          </Suspense>
           </div>
         </div>
         <Footer />

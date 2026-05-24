@@ -22,15 +22,22 @@ export const SectionHeader = ({ title, subtitle }) => (
 );
 
 export const EmptyState = ({ message = 'No data available.' }) => <VuiBox className="state"><VuiTypography color="text">{message}</VuiTypography></VuiBox>;
-export const LoadingState = ({ message = 'Loading...' }) => <VuiBox className="state"><VuiTypography color="text">{message}</VuiTypography></VuiBox>;
+export const LoadingState = ({ message = 'Loading...' }) => <VuiBox className="state"><VuiTypography color="text">{message}</VuiTypography><VuiBox className="skeleton-lines"><span /><span /><span /></VuiBox></VuiBox>;
 export const ErrorState = ({ message = 'Unable to load data.' }) => <VuiBox className="state"><VuiTypography color="text">{message}</VuiTypography></VuiBox>;
+
+export const StatusBanner = ({ tone = 'info', title, children }) => (
+  <VuiBox className={`status-banner status-banner-${tone}`}>
+    <strong>{title}</strong>
+    <span>{children}</span>
+  </VuiBox>
+);
 
 export const ActionButton = ({ children, variant = 'primary', ...props }) => (
   <VuiButton color={variant === 'primary' ? 'info' : variant === 'danger' ? 'error' : variant} variant="gradient" className={`btn ${variant}`} {...props}>{children}</VuiButton>
 );
 
 const riskToClass = {
-  low: 'badge-low', medium: 'badge-medium', high: 'badge-high', critical: 'badge-critical'
+  low: 'badge-low', medium: 'badge-medium', high: 'badge-high', critical: 'badge-critical', unknown: 'badge-pending'
 };
 
 const displayLabel = (value) => {
@@ -48,6 +55,10 @@ const displayLabel = (value) => {
     matched: 'Matched',
     new: 'Awaiting Review',
     none: 'No Action',
+    needs_review: 'Needs Review',
+    model_error: 'Model Error',
+    unsafe_incomplete_features: 'Pipeline Unsafe',
+    recovered: 'Recovered',
   };
   const key = (value || '').toLowerCase();
   return labels[key] || key.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()) || 'Unknown';

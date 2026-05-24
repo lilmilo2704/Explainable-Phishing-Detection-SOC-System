@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchLocalExplanation } from '../api';
-import { ErrorState, LoadingState } from './ui';
+import { EmptyState, ErrorState, LoadingState, StatusBanner } from './ui';
 import { VuiBox, VuiTypography } from './vision';
 import {
   Bar,
@@ -52,10 +52,15 @@ const LocalExplanationPanel = ({ emailId }) => {
       <VuiBox className="explanation-summary">
         {explanation.human_summary}
       </VuiBox>
+      {explanation.pipeline_status === 'unsafe_incomplete_features' ? (
+        <StatusBanner tone="warning" title="Untrusted explanation context">
+          Training preprocessing alignment is incomplete. This does not prove phishing; analyst review is required.
+        </StatusBanner>
+      ) : null}
 
       <VuiBox>
         <VuiTypography variant="button" color="text" fontWeight="bold" className="explanation-subtitle">Feature Contribution</VuiTypography>
-        <div style={{ height: '260px' }}>
+        {features.length ? <div style={{ height: '260px' }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
@@ -73,12 +78,12 @@ const LocalExplanationPanel = ({ emailId }) => {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </div>
+        </div> : <EmptyState message="Technical feature contributions are unavailable until the model pipeline is validated." />}
       </VuiBox>
 
       <VuiBox>
         <VuiTypography variant="button" color="text" fontWeight="bold" className="explanation-subtitle">Top Explanation Factors</VuiTypography>
-        <div className="factor-list">
+        {features.length ? <div className="factor-list">
           {features.map((feat, idx) => (
             <div key={idx} className="factor-row">
               <div className="factor-heading">
@@ -98,7 +103,7 @@ const LocalExplanationPanel = ({ emailId }) => {
               </div>
             </div>
           ))}
-        </div>
+        </div> : <EmptyState message="No trusted raw contribution details available." />}
       </VuiBox>
       
       <VuiTypography variant="caption" color="text" className="explanation-metadata">
@@ -107,6 +112,7 @@ const LocalExplanationPanel = ({ emailId }) => {
       <VuiTypography variant="caption" color="text">
         Explainer: {explanation.explainer_type} | Model Version: {explanation.model_version}
       </VuiTypography>
+      <div className="governance-note">Feature contributions describe model influence and are not proof that an email is malicious.</div>
     </VuiBox>
   );
 };

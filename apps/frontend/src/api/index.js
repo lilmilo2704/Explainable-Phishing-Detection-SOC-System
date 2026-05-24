@@ -1,4 +1,4 @@
-const API_URL = 'http://127.0.0.1:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
 export const fetchSummary = async () => {
   const response = await fetch(`${API_URL}/dashboard/summary`);
@@ -6,8 +6,8 @@ export const fetchSummary = async () => {
   return response.json();
 };
 
-export const fetchEmails = async () => {
-  const response = await fetch(`${API_URL}/emails`);
+export const fetchEmails = async ({ page = 1, pageSize = 100 } = {}) => {
+  const response = await fetch(`${API_URL}/emails?page=${page}&page_size=${pageSize}`);
   if (!response.ok) throw new Error('Failed to fetch emails');
   return response.json();
 };
@@ -42,11 +42,15 @@ export const fetchModelHealth = async () => {
   return response.json();
 };
 
-export const exportConfirmedFeedback = async () => {
-  const response = await fetch(`${API_URL}/feedback/export-confirmed`, {
-    method: 'POST',
-  });
-  if (!response.ok) throw new Error('Failed to export confirmed feedback');
+export const fetchModelReadiness = async () => {
+  const response = await fetch(`${API_URL}/monitoring/model-readiness`);
+  if (!response.ok) throw new Error('Failed to fetch model readiness');
+  return response.json();
+};
+
+export const fetchSyncStatus = async () => {
+  const response = await fetch(`${API_URL}/mailbox/sync-status`);
+  if (!response.ok) throw new Error('Failed to fetch sync status');
   return response.json();
 };
 
@@ -70,21 +74,21 @@ export const reviewFeedback = async (id, payload) => {
   return response.json();
 };
 
-export const quarantineEmail = async (id, provider = 'mock') => {
+export const quarantineEmail = async (id) => {
   const response = await fetch(`${API_URL}/emails/${id}/quarantine`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ provider }),
+    body: JSON.stringify({ actor: 'analyst', reason: 'Manual analyst containment action' }),
   });
   if (!response.ok) throw new Error('Failed to quarantine email');
   return response.json();
 };
 
-export const releaseEmail = async (id, provider = 'mock') => {
+export const releaseEmail = async (id) => {
   const response = await fetch(`${API_URL}/emails/${id}/release`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ provider }),
+    body: JSON.stringify({ actor: 'analyst', reason: 'Analyst release after review' }),
   });
   if (!response.ok) throw new Error('Failed to release email');
   return response.json();
@@ -106,7 +110,7 @@ export const saveActiveModelConfig = async (payload) => {
   const response = await fetch(`${API_URL}/api/models/active`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, actor: 'analyst' }),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -115,7 +119,7 @@ export const saveActiveModelConfig = async (payload) => {
   return response.json();
 };
 
-export const syncMailbox = async (payload = { provider: 'gmail', limit: 200 }) => {
+export const syncMailbox = async (payload = { limit: 25, actor: 'analyst' }) => {
   const response = await fetch(`${API_URL}/mailbox/sync`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

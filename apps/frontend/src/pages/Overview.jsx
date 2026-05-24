@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Mail, ShieldAlert, Archive, ClipboardList, AlertTriangle, ShieldX, ShieldCheck, Gauge } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import MetricCard from '../components/MetricCard';
-import { fetchEmails, fetchSummary } from '../api';
-import { DataTable, ErrorState, LoadingState, PageHeader, Panel, RiskBadge, SectionHeader, StatusBadge } from '../components/ui';
+import { fetchEmails, fetchModelReadiness, fetchSummary, fetchSyncStatus } from '../api';
+import ModelReadinessPanel from '../components/ModelReadinessPanel';
+import SyncStatusPanel from '../components/SyncStatusPanel';
+import { DataTable, ErrorState, LoadingState, PageHeader, Panel, RiskBadge, SectionHeader, StatusBadge, StatusBanner } from '../components/ui';
 import { VuiBox } from '../components/vision';
 
 const RISK_COLORS = { low: 'var(--chart-axis)', medium: 'var(--warning)', high: 'var(--danger)', critical: 'var(--critical)' };
@@ -13,13 +15,19 @@ const Overview = () => {
   const [emails, setEmails] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [readiness, setReadiness] = useState(null);
+  const [syncStatus, setSyncStatus] = useState(null);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [summaryData, emailData] = await Promise.all([fetchSummary(), fetchEmails()]);
+        const [summaryData, emailData, readinessData, syncData] = await Promise.all([
+          fetchSummary(), fetchEmails(), fetchModelReadiness(), fetchSyncStatus(),
+        ]);
         setSummary(summaryData);
         setEmails(emailData.items || []);
+        setReadiness(readinessData);
+        setSyncStatus(syncData);
       } catch {
         setError('Unable to load overview data. Retry.');
       } finally {
@@ -27,6 +35,8 @@ const Overview = () => {
       }
     };
     loadData();
+    window.addEventListener('phishguard:mailbox-synced', loadData);
+    return () => window.removeEventListener('phishguard:mailbox-synced', loadData);
   }, []);
 
   const trendData = useMemo(() => {
@@ -73,6 +83,14 @@ const Overview = () => {
   return (
     <VuiBox className="page-content">
       <PageHeader title="Overview" description="Operational summary of scanned email risk, quarantine activity, and pending analyst review." />
+      {!readiness?.safe_for_live_prediction ? (
+        <StatusBanner tone="warning" title="Model pipeline incomplete">
+          Predictions are recorded as needs-review shadow-mode results until training preprocessing artifacts validate.
+        </StatusBanner>
+      ) : null}
+      <StatusBanner tone="info" title="Live operational metrics">
+        Dashboard counts below are calculated from local mailbox records. Research benchmark fidelity is shown separately in Model Monitoring.
+      </StatusBanner>
 
       <VuiBox className="grid-cards">
         <MetricCard title="Emails Scanned" value={summary.emails_scanned} icon={<Mail size={18} />} />
@@ -81,8 +99,13 @@ const Overview = () => {
         <MetricCard title="Pending Review" value={summary.pending_review} icon={<ClipboardList size={18} />} color="var(--warning)" />
         <MetricCard title="Confirmed False Positives" value={summary.false_positive_reports} icon={<ShieldCheck size={18} />} />
         <MetricCard title="Confirmed False Negatives" value={summary.false_negative_reports} icon={<ShieldX size={18} />} color="var(--danger)" />
-        <MetricCard title="Average Confidence" value={`${((summary.average_confidence || 0) * 100).toFixed(0)}%`} icon={<Gauge size={18} />} />
+        <MetricCard title="Average Confidence" value={summary.average_confidence == null ? 'N/A' : `${(summary.average_confidence * 100).toFixed(0)}%`} icon={<Gauge size={18} />} />
         <MetricCard title="High-Risk Cases" value={summary.high_risk_cases} icon={<AlertTriangle size={18} />} color="var(--critical)" />
+      </VuiBox>
+
+      <VuiBox className="grid-2" style={{ marginBottom: 16 }}>
+        <ModelReadinessPanel readiness={readiness} />
+        <SyncStatusPanel syncStatus={syncStatus} />
       </VuiBox>
 
       <VuiBox className="grid-2" style={{ marginBottom: 16 }}>

@@ -3,7 +3,7 @@ import { Activity } from 'lucide-react';
 import MetricCard from '../components/MetricCard';
 import { fetchGlobalExplanation } from '../api';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ErrorState, LoadingState, PageHeader, Panel, SectionHeader } from '../components/ui';
+import { ErrorState, LoadingState, PageHeader, Panel, SectionHeader, StatusBanner } from '../components/ui';
 import { VuiBox } from '../components/vision';
 
 const GlobalExplanation = () => {
@@ -28,6 +28,9 @@ const GlobalExplanation = () => {
   return (
     <VuiBox className="page-content">
       <PageHeader title="Global Explanation" description="Model-level behaviour and surrogate reliability; these indicators are not proof for a single message." />
+      <StatusBanner tone="warning" title="Research benchmark view">
+        {data.benchmark_notice || 'These fixed surrogate fidelity metrics are not live Gmail accuracy.'}
+      </StatusBanner>
 
       <Panel style={{ marginBottom: 16 }}>
         <SectionHeader title="Model Behaviour Summary" subtitle="Teacher and surrogate pair for this explanation run" />
@@ -63,7 +66,7 @@ const GlobalExplanation = () => {
         </Panel>
 
         <Panel>
-          <SectionHeader title="Failure Pattern Summary" subtitle="Patterns observed in model mistakes" />
+        <SectionHeader title="Failure Pattern Summary" subtitle="Recurring patterns appear here once analyst-confirmed live feedback is available" />
           <div style={{ marginBottom: 12 }}>
             <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>False Positive Pattern</div>
             <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--text-2)', fontSize: 13 }}>

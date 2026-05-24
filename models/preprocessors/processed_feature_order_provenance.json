@@ -1,0 +1,14 @@
+{
+  "artifact_type": "processed_feature_order",
+  "recovery_method": "extracted_from_fitted_surrogate_feature_names_in_",
+  "recovered_at_utc": "2026-05-24T17:09:51.576413+00:00",
+  "feature_count": 292,
+  "source_surrogate": "models/surrogate-models/ebm_random_forest.pkl",
+  "source_surrogate_sha256": "9273c8a285351b51d016cd77dda798e25e5b091664f717926ba414269254ab8c",
+  "validated_teacher": "models/teacher-models/random_forest.pkl",
+  "validated_teacher_sha256": "fc14bd6a5259c1a3b3accfd0919b7de6b27743fdf260c7912daaf2825b2fc5b2",
+  "teacher_expected_feature_count": 292,
+  "secondary_surrogate_agrees": true,
+  "preprocessor_recovered": false,
+  "preprocessor_note": "This artifact restores processed column order only. A fitted training preprocessor is still required before trusted live prediction."
+}

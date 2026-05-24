@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import datetime
-from app.database import engine, Base, SessionLocal
+from app.database import engine, Base, SessionLocal, run_startup_migrations
 from app.models import Email, Prediction, Explanation, Feedback
 
 # Paths
@@ -37,6 +37,7 @@ def init_db():
         for ed in emails_data:
             email = Email(
                 id=ed.get("id"),
+                mailbox_source=ed.get("mailbox_source", "mock"),
                 mailbox_message_id=ed.get("mailbox_message_id"),
                 subject=ed.get("subject"),
                 sender=ed.get("sender"),
@@ -45,6 +46,9 @@ def init_db():
                 reply_to=ed.get("reply_to"),
                 received_at=parse_datetime(ed.get("received_at")),
                 body_preview=ed.get("body_preview"),
+                body=ed.get("body", ed.get("body_preview")),
+                urls=ed.get("urls", []),
+                attachments=ed.get("attachments", []),
                 url_count=ed.get("url_count"),
                 attachment_count=ed.get("attachment_count"),
                 has_links=ed.get("has_links"),
@@ -67,6 +71,11 @@ def init_db():
                 recommended_action=pd.get("recommended_action"),
                 model_name=pd.get("model_name"),
                 model_version=pd.get("model_version"),
+                teacher_model_id=pd.get("teacher_model_id", "random_forest_v1"),
+                surrogate_model_id=pd.get("surrogate_model_id", "ebm_random_forest_v1"),
+                is_latest=True,
+                trusted_prediction=False,
+                pipeline_status="seeded_demo",
                 created_at=parse_datetime(pd.get("created_at"))
             )
             db.add(prediction)
@@ -83,6 +92,8 @@ def init_db():
                 model_version=exd.get("model_version"),
                 human_summary=exd.get("human_summary"),
                 top_features=exd.get("top_features"), # dicts automatically encoded to JSON by SQLAlchemy
+                snapshot_id=exd.get("snapshot_id", f"seed_{exd.get('id')}"),
+                pipeline_status="seeded_demo",
                 created_at=parse_datetime(exd.get("created_at"))
             )
             db.add(explanation)
@@ -108,11 +119,14 @@ def init_db():
                 comments=fb.get("comments"),
                 status=fb.get("status"),
                 analyst_id=fb.get("analyst_id"),
+                submitted_by=fb.get("submitted_by", "demo_user"),
+                feedback_source=fb.get("feedback_source", "user"),
                 created_at=parse_datetime(fb.get("created_at"))
             )
             db.add(feedback)
 
         db.commit()
+        run_startup_migrations()
         print("Database initialized and seeded successfully.")
     except Exception as e:
         print(f"Error during initialization: {e}")

@@ -15,7 +15,7 @@ def test_health():
 
 
 def test_emails_and_local_explanation_flow():
-    emails = client.get("/emails")
+    emails = client.get("/emails?source=mock")
     assert emails.status_code == 200
     items = emails.json()["items"]
     assert len(items) > 0
@@ -52,7 +52,7 @@ def test_scan_email_and_scan_batch():
 
 
 def test_feedback_and_quarantine_release_flow():
-    emails = client.get("/emails")
+    emails = client.get("/emails?source=mock")
     email_id = emails.json()["items"][0]["id"]
 
     create_fb = client.post(

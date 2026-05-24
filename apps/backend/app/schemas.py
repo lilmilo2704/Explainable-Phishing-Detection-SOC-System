@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional, Any, Dict
 from datetime import datetime
 
@@ -15,6 +15,9 @@ class PredictionSchema(BaseModel):
     surrogate_model_id: Optional[str] = None
     feature_extractor_version: Optional[str] = None
     explanation_snapshot: Optional[Dict[str, Any]] = None
+    explanation_version: Optional[str] = None
+    trusted_prediction: bool = False
+    pipeline_status: Optional[str] = None
     created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -22,6 +25,7 @@ class PredictionSchema(BaseModel):
 class EmailSchema(BaseModel):
     id: str
     mailbox_message_id: Optional[str] = None
+    mailbox_source: str = "mock"
     subject: Optional[str] = None
     sender: Optional[str] = None
     sender_domain: Optional[str] = None
@@ -29,12 +33,16 @@ class EmailSchema(BaseModel):
     reply_to: Optional[str] = None
     received_at: Optional[datetime] = None
     body_preview: Optional[str] = None
+    body: Optional[str] = None
+    urls: Optional[List[str]] = None
     url_count: int = 0
     attachment_count: int = 0
     has_links: bool = False
     has_attachment: bool = False
     quarantine_status: str = "allowed"
     review_status: str = "none"
+    prediction_status: Optional[str] = None
+    model_error: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -75,6 +83,8 @@ class FeedbackSchema(BaseModel):
     comments: Optional[str] = None
     status: str = "pending"
     analyst_id: Optional[str] = None
+    submitted_by: Optional[str] = None
+    feedback_source: Optional[str] = None
     created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -92,11 +102,14 @@ class FeedbackReviewSchema(BaseModel):
     reason_category: Optional[str] = None
     review_status: str = "confirmed"
     added_to_improvement_dataset: bool = False
+    actor: str = "analyst"
 
 
 class MailboxSyncRequestSchema(BaseModel):
-    provider: str = "mock"
-    limit: int = 25
+    provider: Optional[str] = None
+    limit: int = Field(default=25, ge=1, le=200)
+    force_rescan: bool = False
+    actor: str = "analyst"
 
 
 class MailboxSyncItemSchema(BaseModel):
@@ -107,15 +120,30 @@ class MailboxSyncItemSchema(BaseModel):
     risk_level: str
     recommended_action: str
     model_version: str
+    trusted_prediction: bool = False
+    pipeline_status: Optional[str] = None
 
 
 class MailboxSyncResponseSchema(BaseModel):
     provider: str
     imported: int
+    scanned: int
+    skipped: int
+    failed: int
     quarantined: int
+    status: str
+    last_sync_time: Optional[datetime] = None
+    failures: List[Dict[str, Any]] = Field(default_factory=list)
     items: List[MailboxSyncItemSchema]
 
 
 class ActiveModelConfigRequestSchema(BaseModel):
     teacher_model_id: str
     surrogate_model_id: str
+    actor: str = "analyst"
+
+
+class MailboxActionSchema(BaseModel):
+    provider: Optional[str] = None
+    actor: str = "analyst"
+    reason: Optional[str] = None
