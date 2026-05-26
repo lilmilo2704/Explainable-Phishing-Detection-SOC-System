@@ -25,9 +25,9 @@ const FeedbackReview = () => {
     return () => window.removeEventListener('phishguard:mailbox-synced', load);
   }, []);
 
-  const pendingCount = useMemo(() => feedback.filter((f) => (f.review_status || 'pending') !== 'confirmed').length, [feedback]);
+  const pendingCount = useMemo(() => feedback.filter((f) => ['pending', 'pending_review'].includes(f.review_status || 'pending')).length, [feedback]);
 
-  const handleReview = async (label, reason = 'analyst_review') => {
+  const handleReview = async (label, reason = 'analyst_review', reviewStatus = 'confirmed') => {
     if (!selectedCase) return;
     setBusy(true);
     try {
@@ -35,7 +35,7 @@ const FeedbackReview = () => {
         analyst_label: label,
         error_type: null,
         reason_category: reason,
-        review_status: 'confirmed',
+        review_status: reviewStatus,
         added_to_improvement_dataset: false,
         actor: 'analyst',
       });
@@ -77,11 +77,12 @@ const FeedbackReview = () => {
                 <div><strong>User Feedback:</strong> {selectedCase.user_feedback || 'No comment provided.'}</div>
                 <div><strong>Analyst Label:</strong> {selectedCase.analyst_label || 'Pending'}</div>
                 <div><strong>Reason Category:</strong> {selectedCase.reason_category || 'Unspecified'}</div>
-                <div><strong>Explanation Snapshot:</strong> {`EXP-${String(selectedCase.email_id || selectedCase.id).toUpperCase()}`}</div>
+                <div><strong>Explanation Snapshot:</strong> {selectedCase.explanation_snapshot_id || 'Not captured'}</div>
               </div>
               <div style={{ display: 'grid', gap: 8 }}>
                 <ActionButton variant="danger" disabled={busy} onClick={() => handleReview('phishing', 'confirmed_malicious')}>Confirm Phishing</ActionButton>
-                <ActionButton variant="success" disabled={busy} onClick={() => handleReview('legitimate', 'false_positive')}>Confirm Legitimate</ActionButton>
+                <ActionButton variant="success" disabled={busy} onClick={() => handleReview('legitimate', 'analyst_confirmed_legitimate')}>Confirm Legitimate</ActionButton>
+                <ActionButton variant="warning" disabled={busy} onClick={() => handleReview(null, 'feedback_rejected', 'rejected')}>Reject Feedback</ActionButton>
                 <div className="governance-note">Confirmed feedback updates live monitoring only. Retraining-data export and automatic retraining are disabled for this prototype.</div>
               </div>
             </>

@@ -76,6 +76,16 @@ Build in this order:
 
 ---
 
+## Memory Update (2026-05-26, Multi-Agent Hardening)
+
+- A multi-agent audit and implementation pass hardened backend, frontend, ML explainability, mailbox safety, and tests.
+- Mailbox sync is manual in the current runtime. Any Gmail mutation is fail-closed and requires `ALLOW_LIVE_GMAIL_ACTIONS=true` with `SHADOW_MODE=false`; automatic quarantine cannot override analyst release or confirmed-legitimate review; mock quarantine remains simulated for MVP workflows.
+- Feedback now records historical explanation provenance and derives review outcomes server-side. Confirmed-feedback export remains disabled in this prototype.
+- Local explanation failures, including explanation output with no usable contribution evidence, downgrade the decision to analyst review rather than allowing automatic action.
+- Remaining production work includes authenticated roles/authorization, a retention policy for stored email bodies, and persistence semantics for ad-hoc scan submissions.
+
+---
+
 ## Memory Update (2026-05-23)
 
 ### Current Phase Status
@@ -83,7 +93,7 @@ Build in this order:
 - Phase 1 (offline MVP): implemented and working.
 - Phase 2 (DB/API persistence layer): implemented for core entities and flows.
 - Phase 3 (model + explanation integration): integrated with existing artifacts and backend services.
-- Phase 4 (feedback governance workflow): implemented end-to-end (submit/review/export/counters).
+- Phase 4 (feedback governance workflow): implemented for submission, review, provenance, and counters; export is reserved/disabled in this prototype.
 - Phase 5 (mailbox integration): mock provider is operational and Gmail provider is implemented.
 
 ### Implemented Backend Capabilities
@@ -100,7 +110,7 @@ Build in this order:
   - `GET /feedback`
   - `POST /emails/{id}/feedback`
   - `PATCH /feedback/{id}/review`
-  - `POST /feedback/export-confirmed`
+  - `POST /feedback/export-confirmed` (reserved endpoint; currently disabled)
 - Quarantine/release:
   - `POST /emails/{id}/quarantine`
   - `POST /emails/{id}/release`
@@ -127,19 +137,13 @@ Build in this order:
 - Canonical secret location is:
   - `secrets/gmail/credentials.json`
   - `secrets/gmail/token.json`
-- `.env.example` has defaults for Gmail paths and auto-sync settings.
+- `.env.example` documents Gmail paths and shadow/live-action safety settings.
 
-### Automatic Mailbox Sync
+### Mailbox Sync Policy
 
-- Backend now supports automatic periodic sync on startup.
-- Configurable via env:
-  - `AUTO_SYNC_ENABLED`
-  - `AUTO_SYNC_PROVIDER`
-  - `AUTO_SYNC_INTERVAL_SECONDS`
-  - `AUTO_SYNC_LIMIT`
-- Provider auto-detection fallback:
-  - if provider not explicitly set and Gmail secrets exist, auto-sync prefers `gmail`
-  - otherwise defaults to `mock`
+- Backend runtime supports manually triggered mailbox sync.
+- Live Gmail mutation is disabled unless `ALLOW_LIVE_GMAIL_ACTIONS=true` and `SHADOW_MODE=false`.
+- Mock provider actions continue to be simulated for offline MVP workflows.
 
 ### Frontend Status (Showcase Pass)
 
@@ -152,7 +156,7 @@ Build in this order:
 - Quarantine:
   - now fully functional page with release action and auto-refresh.
 - Feedback Review + Model Monitoring:
-  - working with governance counters and export action.
+  - working with governance counters and review actions.
 
 ### Test Status
 
@@ -161,8 +165,7 @@ Build in this order:
 
 ### Important Operational Notes
 
-- New incoming Gmail messages only appear after sync cycles.
-- For automatic ingestion, backend must be running with auto-sync enabled and provider set to Gmail or auto-detected.
+- New incoming Gmail messages appear only after a manually requested sync.
 - Current Gmail fetch uses inbox label (`INBOX`) in list query.
 
 ---

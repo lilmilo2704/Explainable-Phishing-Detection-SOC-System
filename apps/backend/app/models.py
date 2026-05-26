@@ -85,6 +85,7 @@ class Feedback(Base):
     id = Column(String, primary_key=True, index=True)
     email_id = Column(String, ForeignKey("emails.id"))
     prediction_id = Column(String, ForeignKey("predictions.id"), nullable=True)
+    explanation_snapshot_id = Column(String, nullable=True)
     feedback_type = Column(String) # wrong_detection, false_positive, false_negative, true_positive, true_negative
     original_prediction = Column(String, nullable=True)
     original_confidence = Column(Float, nullable=True)

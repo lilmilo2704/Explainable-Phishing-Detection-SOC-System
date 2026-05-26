@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { fetchEmailDetail, quarantineEmail, releaseEmail, submitFeedback, reviewFeedback } from '../api';
 import LocalExplanationPanel from '../components/LocalExplanationPanel';
@@ -11,6 +11,7 @@ const EmailInvestigation = () => {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [explanationState, setExplanationState] = useState({ emailId: null, status: 'loading', data: null });
 
   useEffect(() => {
     const run = async () => {
@@ -21,6 +22,10 @@ const EmailInvestigation = () => {
   }, [id]);
 
   const refresh = async () => setEmail(await fetchEmailDetail(email.id));
+
+  const handleExplanationStateChange = useCallback((nextState) => {
+    setExplanationState({ emailId: id, ...nextState });
+  }, [id]);
 
   const submitAndReview = async (analystLabel, reasonCategory) => {
     if (!email) return;
@@ -39,13 +44,11 @@ const EmailInvestigation = () => {
         added_to_improvement_dataset: false,
         actor: 'analyst',
       });
-      if (analystLabel === 'phishing') {
-        await quarantineEmail(email.id);
-        setMsg('Phishing confirmed. Case remains quarantined for containment.');
-      } else {
-        await releaseEmail(email.id);
-        setMsg('Marked legitimate. Email released from quarantine.');
-      }
+      setMsg(
+        analystLabel === 'phishing'
+          ? 'Phishing classification confirmed. Use Move to Quarantine if containment is permitted for this mailbox.'
+          : 'Legitimate classification confirmed. Use Release from Quarantine if a contained message should be restored.',
+      );
       await refresh();
     } catch {
       setMsg('Action failed. Please retry.');
@@ -73,6 +76,14 @@ const EmailInvestigation = () => {
   if (!email) return <VuiBox className="page-content"><ErrorState message="Unable to load investigation case." /></VuiBox>;
 
   const pd = email.prediction_details || {};
+  const activeExplanationState = explanationState.emailId === email.id
+    ? explanationState
+    : { status: 'loading', data: null };
+  const snapshotDisplay = activeExplanationState.status === 'loading'
+    ? 'Loading...'
+    : activeExplanationState.status === 'unavailable'
+      ? 'Unavailable'
+      : activeExplanationState.data?.snapshot_id || 'Not captured';
 
   return (
     <VuiBox className="page-content">
@@ -92,15 +103,15 @@ const EmailInvestigation = () => {
               <span style={{ color: 'var(--text-2)' }}>Reply-To</span><span>{email.reply_to || 'N/A'}</span>
               <span style={{ color: 'var(--text-2)' }}>Recipient</span><span>{email.recipient}</span>
               <span style={{ color: 'var(--text-2)' }}>Received Time</span><span>{email.received_at ? new Date(email.received_at).toLocaleString() : 'N/A'}</span>
-              <span style={{ color: 'var(--text-2)' }}>Model Version</span><span>{pd.teacher_model_id || 'Random Forest v1'}</span>
-              <span style={{ color: 'var(--text-2)' }}>Explanation Snapshot</span><span>{`EXP-${String(email.id || '').toUpperCase()}`}</span>
+              <span style={{ color: 'var(--text-2)' }}>Model Version</span><span>{pd.model_version || pd.teacher_model_id || 'Unavailable'}</span>
+              <span style={{ color: 'var(--text-2)' }}>Explanation Snapshot</span><span>{snapshotDisplay}</span>
               <span style={{ color: 'var(--text-2)' }}>Assigned Analyst</span><span>Unassigned</span>
             </div>
           </Panel>
 
           <Panel>
             <SectionHeader title="Local Explanation" subtitle="Human-readable explanation and feature evidence" />
-            <LocalExplanationPanel emailId={email.id} />
+            <LocalExplanationPanel key={email.id} emailId={email.id} onExplanationStateChange={handleExplanationStateChange} />
           </Panel>
         </VuiBox>
 
@@ -119,7 +130,7 @@ const EmailInvestigation = () => {
             <SectionHeader title="Analyst Actions" subtitle="Feedback supports future offline model improvement after analyst confirmation" />
             <div className="analyst-actions-grid">
               <ActionButton variant="danger" disabled={busy} onClick={() => submitAndReview('phishing', 'confirmed_malicious')}>Confirm Phishing</ActionButton>
-              <ActionButton variant="warning" disabled={busy} onClick={() => submitAndReview('legitimate', 'false_positive')}>Mark False Positive</ActionButton>
+              <ActionButton variant="warning" disabled={busy} onClick={() => submitAndReview('legitimate', 'analyst_confirmed_legitimate')}>Confirm Legitimate</ActionButton>
               <ActionButton variant="primary" disabled={busy} onClick={handleQuarantine}>Move to Quarantine</ActionButton>
               <ActionButton variant="success" disabled={busy} onClick={handleRelease}>Release from Quarantine</ActionButton>
               {msg ? <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{msg}</div> : null}

@@ -1,8 +1,14 @@
 # Known Issues and Risks
 
-## 1. Model Artifact Integration Is Not Complete Yet
+## Runtime Status Correction (2026-05-26)
 
-The project has model artifacts from the research repo, but this product still needs:
+The early integration risks below are retained as historical design context. Runtime now validates recovered preprocessing/feature order and can serve active model readiness. Mailbox sync is manually triggered; no background auto-sync worker is active. Confirmed-feedback export remains intentionally disabled in this prototype.
+
+Current open priorities are authentication/role enforcement for state-changing actions, data-retention controls for stored message bodies, and persistence of ad-hoc `/scan-email` submissions when they are used as investigation cases.
+
+## 1. Historical Model Artifact Integration Risk
+
+The project originally required:
 - artifact placement
 - loader functions
 - dependency setup
@@ -70,16 +76,16 @@ Use Git LFS or document manual artifact placement if needed.
 
 ## Current Known Issues (2026-05-23)
 
-## 10. Gmail Real-Time Is Polling-Based, Not Push-Based
+## 10. Gmail Ingestion Is Manual, Not Push-Based
 
-Current auto-sync is interval polling.
+Current runtime supports manually initiated sync only.
 
 Implication:
 - Not instant event-level real-time.
-- Message visibility depends on sync interval and provider/API latency.
+- Message visibility depends on a requested sync and provider/API latency.
 
 Future improvement:
-- Add Gmail `watch` + Pub/Sub push workflow if strict real-time is required.
+- Add a deliberately reviewed scheduling or Gmail `watch` + Pub/Sub workflow if strict real-time is required.
 
 ## 11. Gmail Sync Scope and Query Behavior
 
@@ -120,11 +126,11 @@ Risk:
 
 ## 15. Auto-Sync Startup Behavior vs Seed Data
 
-If backend is seeded with mock data and auto-sync is set to gmail/mock concurrently, queue contents can shift during demos.
+If backend is seeded with mock data and an operator manually syncs a different provider during a demo, queue contents can shift.
 
 Recommendation:
-- Explicitly choose provider and interval for each demo session.
-- Consider disabling auto-sync in demos that require static snapshots.
+- Explicitly choose the provider for each demo session.
+- Avoid manual sync during demos that require static snapshots.
 
 ## 16. SQLite Schema Migration Needed for New Prediction Metadata
 

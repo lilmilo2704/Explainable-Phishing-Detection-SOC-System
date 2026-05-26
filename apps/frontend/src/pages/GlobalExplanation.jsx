@@ -1,19 +1,33 @@
 import { useEffect, useState } from 'react';
 import { Activity } from 'lucide-react';
 import MetricCard from '../components/MetricCard';
-import { fetchGlobalExplanation } from '../api';
+import { fetchGlobalExplanation, fetchMailboxProviders } from '../api';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ErrorState, LoadingState, PageHeader, Panel, SectionHeader, StatusBanner } from '../components/ui';
 import { VuiBox } from '../components/vision';
 
+const providerLabel = (source) => {
+  if (source === 'mock') return 'mock fixture mailbox';
+  if (source === 'gmail') return 'Gmail mailbox';
+  return source ? `${source.replaceAll('_', ' ')} mailbox` : 'configured mailbox';
+};
+
 const GlobalExplanation = () => {
   const [data, setData] = useState(null);
+  const [mailboxSource, setMailboxSource] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
-      try { setData(await fetchGlobalExplanation()); }
+      try {
+        const [explanation, providers] = await Promise.all([
+          fetchGlobalExplanation(),
+          fetchMailboxProviders().catch(() => null),
+        ]);
+        setData(explanation);
+        setMailboxSource(providers?.default_provider || '');
+      }
       catch { setError('Unable to load global explanation data. Retry.'); }
       finally { setLoading(false); }
     };
@@ -24,12 +38,14 @@ const GlobalExplanation = () => {
   if (error || !data || data.model_failed) return <VuiBox className="page-content"><ErrorState message={error || 'Unable to load global explanation data. Retry.'} /></VuiBox>;
 
   const features = (data.top_features || []).slice(0, 10);
+  const mailboxLabel = providerLabel(mailboxSource);
+  const failurePatterns = data.failure_patterns || {};
 
   return (
     <VuiBox className="page-content">
       <PageHeader title="Global Explanation" description="Model-level behaviour and surrogate reliability; these indicators are not proof for a single message." />
       <StatusBanner tone="warning" title="Research benchmark view">
-        {data.benchmark_notice || 'These fixed surrogate fidelity metrics are not live Gmail accuracy.'}
+        These fixed surrogate fidelity metrics are not live {mailboxLabel} detection accuracy.
       </StatusBanner>
 
       <Panel style={{ marginBottom: 16 }}>
@@ -66,17 +82,26 @@ const GlobalExplanation = () => {
         </Panel>
 
         <Panel>
-        <SectionHeader title="Failure Pattern Summary" subtitle="Recurring patterns appear here once analyst-confirmed live feedback is available" />
+          <SectionHeader title="Failure Pattern Summary" subtitle="Recurring patterns appear here once analyst-confirmed operational feedback is available" />
+          {failurePatterns.message ? (
+            <StatusBanner tone="info" title="Operational feedback provenance">
+              {failurePatterns.message}
+            </StatusBanner>
+          ) : null}
           <div style={{ marginBottom: 12 }}>
             <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>False Positive Pattern</div>
             <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--text-2)', fontSize: 13 }}>
-              {(data.failure_patterns?.false_positives || []).map((p, i) => <li key={i}>{p}</li>)}
+              {(failurePatterns.false_positives || []).length
+                ? failurePatterns.false_positives.map((p, i) => <li key={i}>{p}</li>)
+                : <li>No analyst-confirmed pattern calculated.</li>}
             </ul>
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>False Negative Pattern</div>
             <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--text-2)', fontSize: 13 }}>
-              {(data.failure_patterns?.false_negatives || []).map((p, i) => <li key={i}>{p}</li>)}
+              {(failurePatterns.false_negatives || []).length
+                ? failurePatterns.false_negatives.map((p, i) => <li key={i}>{p}</li>)
+                : <li>No analyst-confirmed pattern calculated.</li>}
             </ul>
           </div>
         </Panel>

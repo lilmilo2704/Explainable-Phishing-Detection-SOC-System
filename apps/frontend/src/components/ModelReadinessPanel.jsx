@@ -1,11 +1,17 @@
 import { Panel, SectionHeader, StatusBadge, StatusBanner } from './ui';
 
-const ModelReadinessPanel = ({ readiness }) => {
+const providerLabel = (provider) => {
+  if (provider === 'mock') return 'mock fixture mailbox';
+  if (provider === 'gmail') return 'Gmail mailbox';
+  return provider ? `${provider.replaceAll('_', ' ')} mailbox` : 'mailbox';
+};
+
+const ModelReadinessPanel = ({ readiness, mailboxSource }) => {
   if (!readiness) return null;
   const safe = readiness.safe_for_live_prediction;
   return (
     <Panel>
-      <SectionHeader title="Model Readiness Check" subtitle="Validation required before trusted Gmail actions" />
+      <SectionHeader title="Model Readiness Check" subtitle={`Validation required before trusted ${providerLabel(mailboxSource)} actions`} />
       {!safe ? (
         <StatusBanner tone="warning" title="Shadow mode: trusted prediction blocked">
           {readiness.recommended_action_if_unsafe}

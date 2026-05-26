@@ -6,6 +6,12 @@ import { fetchModelHealth } from '../api';
 import { ErrorState, LoadingState, PageHeader, Panel, SectionHeader, StatusBanner } from '../components/ui';
 import { VuiBox } from '../components/vision';
 
+const providerLabel = (source) => {
+  if (source === 'mock') return 'mock fixture mailbox';
+  if (source === 'gmail') return 'Gmail mailbox';
+  return source ? `${source.replaceAll('_', ' ')} mailbox` : 'configured mailbox';
+};
+
 const ModelMonitoring = () => {
   const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -27,23 +33,24 @@ const ModelMonitoring = () => {
 
   const live = health.live_operational || health;
   const benchmark = health.research_benchmark || {};
+  const mailboxLabel = providerLabel(health.mailbox_source);
 
   return (
     <VuiBox className="page-content">
-      <PageHeader title="Model Monitoring" description="Live Gmail operation, benchmark explanation fidelity, and analyst-confirmed validation state." />
+      <PageHeader title="Model Monitoring" description={`Operational state for the ${mailboxLabel}, benchmark explanation fidelity, and analyst-confirmed validation state.`} />
 
       <Panel style={{ marginBottom: 16 }}>
-        <SectionHeader title="Current Model Pair" subtitle="Detector and surrogate selected for the Gmail prototype" />
+        <SectionHeader title="Current Model Pair" subtitle={`Detector and surrogate applied to the ${mailboxLabel} workflow`} />
         <div className="summary-grid">
           <div>Detector: <strong>{health.model_name} ({health.model_version})</strong></div>
           <div>Surrogate: <strong>{health.surrogate_name} ({health.surrogate_version})</strong></div>
         </div>
       </Panel>
 
-      <ModelReadinessPanel readiness={health.model_readiness} />
+      <ModelReadinessPanel readiness={health.model_readiness} mailboxSource={health.mailbox_source} />
 
-      <SectionHeader title="Live Operational Metrics" subtitle="Calculated from locally stored Gmail workflow state" />
-      <StatusBanner tone="info" title="Live validation status">{live.validation_message}</StatusBanner>
+      <SectionHeader title="Operational Metrics" subtitle={`Calculated from locally stored ${mailboxLabel} workflow state`} />
+      <StatusBanner tone="info" title="Operational validation status">{live.validation_message}</StatusBanner>
       <VuiBox className="grid-cards">
         <MetricCard title="Emails Scanned" value={live.total_scanned ?? 0} icon={<Mail size={18} />} />
         <MetricCard title="Quarantined" value={live.quarantine_count ?? 0} icon={<Archive size={18} />} color="var(--warning)" />
@@ -55,8 +62,10 @@ const ModelMonitoring = () => {
         <MetricCard title="Confirmed Feedback" value={live.confirmed_feedback ?? 0} icon={<ShieldCheck size={18} />} />
       </VuiBox>
 
-      <SectionHeader title="Research Benchmark Metrics" subtitle="Fixed surrogate fidelity results, not live Gmail accuracy" />
-      <StatusBanner tone="warning" title="Benchmark-only evidence">{benchmark.notice}</StatusBanner>
+      <SectionHeader title="Research Benchmark Metrics" subtitle={`Fixed surrogate fidelity results, not live ${mailboxLabel} detection accuracy`} />
+      <StatusBanner tone="warning" title="Benchmark-only evidence">
+        These fixed fidelity results are benchmark metrics, not live {mailboxLabel} detection accuracy.
+      </StatusBanner>
       <VuiBox className="grid-cards">
         <MetricCard title="Accuracy Fidelity" value={`${((benchmark.accuracy_fidelity || 0) * 100).toFixed(1)}%`} icon={<Activity size={18} />} />
         <MetricCard title="F1 Fidelity" value={`${((benchmark.f1_fidelity || 0) * 100).toFixed(1)}%`} icon={<Activity size={18} />} />

@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { 
   ShieldAlert, 
   LayoutDashboard, 
@@ -12,19 +12,43 @@ import {
   Settings,
   RefreshCcw
 } from 'lucide-react';
-import { syncMailbox } from '../api';
+import { fetchMailboxProviders, syncMailbox } from '../api';
 import { GradientBorder, VuiBox, VuiButton, VuiTypography } from './vision';
+
+const providerLabel = (provider) => {
+  if (provider === 'mock') return 'Mock fixture';
+  if (provider === 'gmail') return 'Gmail';
+  return provider ? provider.replaceAll('_', ' ') : 'Mailbox';
+};
 
 const Sidebar = ({ mobileOpen = false, onClose }) => {
   const [syncing, setSyncing] = useState(false);
   const [syncNote, setSyncNote] = useState('');
+  const [provider, setProvider] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    fetchMailboxProviders()
+      .then((data) => {
+        if (active) setProvider(data.default_provider || '');
+      })
+      .catch(() => {
+        if (active) setProvider('');
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleSync = async () => {
     setSyncing(true);
     setSyncNote('');
     try {
-      const result = await syncMailbox({ provider: 'gmail', limit: 25, actor: 'analyst' });
-      setSyncNote(`Scanned ${result.scanned}; skipped ${result.skipped}; failed ${result.failed}`);
+      const payload = { limit: 25, actor: 'analyst' };
+      if (provider) payload.provider = provider;
+      const result = await syncMailbox(payload);
+      setProvider(result.provider || provider);
+      setSyncNote(`${providerLabel(result.provider)}: scanned ${result.scanned}; skipped ${result.skipped}; failed ${result.failed}`);
       window.dispatchEvent(new CustomEvent('phishguard:mailbox-synced', { detail: result }));
     } catch {
       setSyncNote('Sync failed');
@@ -81,11 +105,11 @@ const Sidebar = ({ mobileOpen = false, onClose }) => {
       <VuiBox className="sidebar-footer">
         <GradientBorder>
           <VuiBox className="sidebar-operation-card">
-            <VuiTypography variant="caption" color="text">Gmail prototype</VuiTypography>
+            <VuiTypography variant="caption" color="text">{provider ? `${providerLabel(provider)} mailbox` : 'Configured mailbox'}</VuiTypography>
             <VuiTypography variant="button" fontWeight="bold">Manual Sync Only</VuiTypography>
             <VuiButton color="info" variant="gradient" className="sync-button" onClick={handleSync} disabled={syncing}>
               <RefreshCcw size={16} />
-              {syncing ? 'Syncing...' : 'Sync Gmail'}
+              {syncing ? 'Syncing...' : `Sync ${providerLabel(provider)}`}
             </VuiButton>
             {syncNote ? <VuiTypography variant="caption" color="text" className="sync-note">{syncNote}</VuiTypography> : null}
           </VuiBox>

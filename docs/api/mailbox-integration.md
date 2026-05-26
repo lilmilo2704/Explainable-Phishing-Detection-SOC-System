@@ -24,6 +24,7 @@ GMAIL_TOKEN_PATH=C:\path\outside\repo\token.json
 GMAIL_REVIEW_LABEL=Phishing Review
 MAILBOX_PROVIDER=gmail
 SHADOW_MODE=true
+ALLOW_LIVE_GMAIL_ACTIONS=false
 FRONTEND_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
 ```
 
@@ -36,11 +37,15 @@ Compatibility setup for this local workspace: if both ignored files already exis
 - Quarantine: add the configured review label and remove `INBOX`.
 - Release: add `INBOX` and remove the configured review label.
 - The application never deletes Gmail messages.
+- Any Gmail mutation, including analyst quarantine/release, is disabled by default and while `SHADOW_MODE=true`.
+- Gmail mutations run only when `ALLOW_LIVE_GMAIL_ACTIONS=true` and `SHADOW_MODE=false`; otherwise sync stores prediction and analyst review state without mutating Gmail.
+- Automatic quarantine does not override an analyst release or an analyst-confirmed legitimate classification; a new decision remains available for review.
+- The mock provider continues to simulate quarantine during MVP tests, including in shadow mode.
 
 ## API Endpoints
 
 - `POST /mailbox/sync` manually syncs the configured provider.
-- The dashboard `Sync Gmail` button explicitly requests a Gmail sync and refreshes the visible live panels after completion.
+- The dashboard sync action uses the configured provider and refreshes the visible panels after completion.
 - `GET /mailbox/providers` reports whether Gmail is configured.
 - `GET /mailbox/sync-status` returns last sync status, skipped/scanned/failed counts and safe failure details.
 - `POST /emails/{id}/quarantine` performs a reversible containment action.

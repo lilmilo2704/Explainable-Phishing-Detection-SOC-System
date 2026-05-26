@@ -59,6 +59,7 @@ def run_startup_migrations() -> None:
     required_feedback_columns = {
         "submitted_by": "TEXT",
         "feedback_source": "TEXT DEFAULT 'user'",
+        "explanation_snapshot_id": "TEXT",
     }
     with engine.begin() as conn:
         for table, required_columns in (

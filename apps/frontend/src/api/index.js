@@ -54,6 +54,12 @@ export const fetchSyncStatus = async () => {
   return response.json();
 };
 
+export const fetchMailboxProviders = async () => {
+  const response = await fetch(`${API_URL}/mailbox/providers`);
+  if (!response.ok) throw new Error('Failed to fetch mailbox providers');
+  return response.json();
+};
+
 export const submitFeedback = async (id, payload) => {
   const response = await fetch(`${API_URL}/emails/${id}/feedback`, {
     method: 'POST',

@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS feedback (
   id TEXT PRIMARY KEY,
   email_id TEXT,
   prediction_id TEXT,
+  explanation_snapshot_id TEXT,
   feedback_type TEXT,
   original_prediction TEXT,
   original_confidence REAL,

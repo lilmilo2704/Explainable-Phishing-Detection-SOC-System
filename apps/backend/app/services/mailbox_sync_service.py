@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any
@@ -11,6 +12,24 @@ from sqlalchemy.orm import Session
 from app.services import data_service
 from app.services.mailbox_integration import get_mailbox_provider
 from app.services.model_manager import model_manager
+
+
+_TRUE_ENV_VALUES = {"1", "true", "yes", "on"}
+_FALSE_ENV_VALUES = {"0", "false", "no", "off"}
+
+
+def _automatic_quarantine_allowed(provider_name: str) -> bool:
+    if provider_name != "gmail":
+        return True
+    live_actions_enabled = (
+        os.getenv("ALLOW_LIVE_GMAIL_ACTIONS", "false").strip().lower()
+        in _TRUE_ENV_VALUES
+    )
+    shadow_mode_explicitly_disabled = (
+        os.getenv("SHADOW_MODE", "true").strip().lower()
+        in _FALSE_ENV_VALUES
+    )
+    return live_actions_enabled and shadow_mode_explicitly_disabled
 
 
 def _normalize_mailbox_email(raw: dict[str, Any], provider_name: str) -> dict[str, Any]:
@@ -178,8 +197,33 @@ def perform_mailbox_sync(
         )
 
         if result.get("trusted_prediction") and result.get("recommended_action") == "quarantine":
+            if email.review_status in {"none", "new"}:
+                data_service.update_email_status(db, email.id, "in_review", "review_status")
             previous_state = {"quarantine_status": email.quarantine_status}
-            provider_changed = provider.quarantine_message(email.mailbox_message_id)
+            analyst_override = (
+                email.quarantine_status == "released"
+                or data_service.has_confirmed_legitimate_feedback(db, email.id)
+            )
+            if analyst_override:
+                data_service.create_audit_event(
+                    db,
+                    email_id=email.id,
+                    actor="system",
+                    action_type="automatic_quarantine_suppressed",
+                    previous_state=previous_state,
+                    new_state={"quarantine_status": email.quarantine_status},
+                    reason="Existing analyst release or confirmed legitimate classification.",
+                    model_version=prediction.model_version,
+                    explanation_version=explanation.model_version,
+                    explanation_snapshot_id=explanation.snapshot_id,
+                )
+                provider_changed = False
+            else:
+                provider_changed = (
+                    provider.quarantine_message(email.mailbox_message_id)
+                    if _automatic_quarantine_allowed(provider.provider_name)
+                    else False
+                )
             if provider_changed:
                 data_service.update_email_status(db, email.id, "quarantined", "quarantine_status")
                 data_service.create_audit_event(

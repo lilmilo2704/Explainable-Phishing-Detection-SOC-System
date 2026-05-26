@@ -33,7 +33,6 @@ class EmailSchema(BaseModel):
     reply_to: Optional[str] = None
     received_at: Optional[datetime] = None
     body_preview: Optional[str] = None
-    body: Optional[str] = None
     urls: Optional[List[str]] = None
     url_count: int = 0
     attachment_count: int = 0
@@ -56,6 +55,7 @@ class EmailDetailSchema(EmailSchema):
 
 class ExplanationSchema(BaseModel):
     id: str
+    snapshot_id: Optional[str] = None
     email_id: str
     prediction_id: str
     explainer_type: str
@@ -70,6 +70,7 @@ class FeedbackSchema(BaseModel):
     id: str
     email_id: str
     prediction_id: Optional[str] = None
+    explanation_snapshot_id: Optional[str] = None
     feedback_type: Optional[str] = None
     original_prediction: Optional[str] = None
     original_confidence: Optional[float] = None

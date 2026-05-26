@@ -72,6 +72,9 @@ Move sync logic into a reusable backend service (`mailbox_sync_service.perform_m
 Reason:
 Avoids duplicated sync logic and keeps behavior consistent between manual sync and automatic sync.
 
+Status:
+Partially superseded by ADR-015; the shared service remains, while the current runtime invokes it manually.
+
 ## ADR-010: Automatic Periodic Sync in Backend Runtime
 
 Decision:
@@ -79,6 +82,9 @@ Start a lightweight background auto-sync loop when API server starts, with envir
 
 Reason:
 Enables near-real-time ingestion for showcase and operations without requiring manual trigger of `/mailbox/sync`.
+
+Status:
+Superseded by ADR-015 for the current prototype runtime.
 
 ## ADR-011: Canonical Gmail Secret Paths in Repository
 
@@ -111,3 +117,19 @@ Persist active model pair in `apps/backend/config/active_model_config.json` with
 
 Reason:
 Allows stable runtime behavior across restarts and supports frontend Settings-driven model switching without code edits.
+
+## ADR-015: Manual Sync and Fail-Closed Gmail Mutation Policy
+
+Decision:
+Use manually triggered mailbox sync in the current prototype. Permit any Gmail mailbox mutation only when `ALLOW_LIVE_GMAIL_ACTIONS=true` and `SHADOW_MODE=false`; automatic quarantine must not override analyst release or analyst-confirmed legitimate classification; continue mock action simulation for offline workflows.
+
+Reason:
+This keeps the MVP demonstrable while preventing an unreviewed runtime path from mutating a real mailbox by default.
+
+## ADR-016: Bind Analyst Feedback to Historical Explanation Provenance
+
+Decision:
+Store the explanation snapshot identifier with feedback and derive confirmed result classifications on the backend from the stored original prediction and analyst label.
+
+Reason:
+Governance review must be traceable to the decision the analyst inspected and must not accept caller-supplied outcome classification as authoritative.

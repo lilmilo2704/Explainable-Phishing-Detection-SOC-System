@@ -72,6 +72,15 @@ def get_local_explanation_by_email_id(db: Session, email_id: str) -> Optional[Ex
     )
 
 
+def get_local_explanation_by_prediction_id(db: Session, prediction_id: str) -> Optional[Explanation]:
+    return (
+        db.query(Explanation)
+        .filter(Explanation.prediction_id == prediction_id)
+        .order_by(desc(Explanation.created_at), desc(Explanation.id))
+        .first()
+    )
+
+
 def get_feedback_cases(db: Session, *, source: Optional[str] = None) -> List[Feedback]:
     query = db.query(Feedback).join(Email).order_by(desc(Feedback.created_at))
     query = _filter_source(query, source)
@@ -80,6 +89,19 @@ def get_feedback_cases(db: Session, *, source: Optional[str] = None) -> List[Fee
 
 def get_feedback_by_id(db: Session, feedback_id: str) -> Optional[Feedback]:
     return db.query(Feedback).filter(Feedback.id == feedback_id).first()
+
+
+def has_confirmed_legitimate_feedback(db: Session, email_id: str) -> bool:
+    return (
+        db.query(Feedback)
+        .filter(
+            Feedback.email_id == email_id,
+            Feedback.review_status == "confirmed",
+            Feedback.analyst_label == "legitimate",
+        )
+        .first()
+        is not None
+    )
 
 
 def create_feedback_case(
@@ -91,10 +113,12 @@ def create_feedback_case(
     submitted_by: Optional[str],
 ) -> Feedback:
     pred = get_prediction_by_email_id(db, email_id)
+    explanation = get_local_explanation_by_prediction_id(db, pred.id) if pred else None
     feedback = Feedback(
         id=f"feedback_{uuid4().hex}",
         email_id=email_id,
         prediction_id=pred.id if pred else None,
+        explanation_snapshot_id=explanation.snapshot_id if explanation else None,
         feedback_type=feedback_type,
         original_prediction=pred.prediction if pred else None,
         original_confidence=pred.confidence if pred else None,
@@ -112,12 +136,19 @@ def create_feedback_case(
     return feedback
 
 
+_REVIEW_OUTCOMES = {
+    ("phishing", "legitimate"): "false_positive",
+    ("legitimate", "phishing"): "false_negative",
+    ("phishing", "phishing"): "true_positive",
+    ("legitimate", "legitimate"): "true_negative",
+}
+
+
 def review_feedback_case(
     db: Session,
     *,
     feedback_id: str,
     analyst_label: Optional[str],
-    error_type: Optional[str],
     reason_category: Optional[str],
     review_status: str,
     actor: str,
@@ -125,8 +156,19 @@ def review_feedback_case(
     feedback = get_feedback_by_id(db, feedback_id)
     if not feedback:
         return None
-    feedback.analyst_label = analyst_label
-    feedback.error_type = error_type
+    if review_status == "rejected":
+        feedback.analyst_label = None
+        feedback.error_type = None
+    elif review_status == "confirmed":
+        error_type = _REVIEW_OUTCOMES.get((feedback.original_prediction, analyst_label))
+        if not error_type:
+            raise ValueError(
+                "Confirmed review requires a valid analyst label and original prediction."
+            )
+        feedback.analyst_label = analyst_label
+        feedback.error_type = error_type
+    else:
+        raise ValueError("Analyst review status must be confirmed or rejected.")
     feedback.reason_category = reason_category
     feedback.review_status = review_status
     feedback.added_to_improvement_dataset = False
@@ -183,11 +225,14 @@ def upsert_email_from_mailbox(db: Session, email_data: dict[str, Any]) -> Email:
         "attachment_count": email_data.get("attachment_count", 0),
         "has_links": email_data.get("has_links", False),
         "has_attachment": email_data.get("has_attachment", False),
-        "quarantine_status": email_data.get("quarantine_status", "allowed"),
-        "review_status": email_data.get("review_status", "none"),
     }
     if email is None:
-        email = Email(id=email_id, **fields)
+        email = Email(
+            id=email_id,
+            quarantine_status=email_data.get("quarantine_status", "allowed"),
+            review_status=email_data.get("review_status", "none"),
+            **fields,
+        )
         db.add(email)
     else:
         for key, value in fields.items():

@@ -106,6 +106,7 @@ def init_db():
                 id=fb.get("id"),
                 email_id=fb.get("email_id"),
                 prediction_id=fb.get("prediction_id"),
+                explanation_snapshot_id=fb.get("explanation_snapshot_id"),
                 feedback_type=fb.get("feedback_type"),
                 original_prediction=fb.get("original_prediction"),
                 original_confidence=fb.get("original_confidence"),

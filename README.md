@@ -18,7 +18,7 @@ The system demonstrates how a security team could:
 - Quarantine or release emails
 - Track analyst-confirmed feedback
 - Monitor model and surrogate explanation behaviour
-- Export validated feedback for future model improvement
+- Review validated feedback for possible future offline model improvement
 
 The goal is not only to detect phishing emails, but to make the detection process understandable, reviewable, and suitable for security operations workflows.
 
@@ -54,7 +54,7 @@ The goal is not only to detect phishing emails, but to make the detection proces
 
 - Analyst-confirmed feedback storage
 - False-positive and false-negative review flow
-- Confirmed feedback export for offline retraining
+- Analyst review of feedback before any future offline retraining work
 - Model version and explanation snapshot tracking
 - Safer human-in-the-loop improvement process
 
@@ -74,9 +74,9 @@ The goal is not only to detect phishing emails, but to make the detection proces
 ### Frontend
 
 - React
-- TypeScript
+- JavaScript / JSX
 - Vite
-- Tailwind CSS
+- Custom SOC dashboard CSS
 - SOC-style dashboard pages for triage, investigation, monitoring, and governance
 
 ### Persistence

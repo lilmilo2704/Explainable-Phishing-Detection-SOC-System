@@ -14,29 +14,42 @@ import {
   YAxis,
 } from 'recharts';
 
-const LocalExplanationPanel = ({ emailId }) => {
+const formatTimestamp = (value) => {
+  if (!value) return 'Unavailable';
+  const timestamp = new Date(value);
+  return Number.isNaN(timestamp.getTime()) ? 'Unavailable' : timestamp.toLocaleString();
+};
+
+const LocalExplanationPanel = ({ emailId, onExplanationStateChange }) => {
   const [explanation, setExplanation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!emailId) return;
+    let active = true;
+    onExplanationStateChange?.({ status: 'loading', data: null });
     const loadExpl = async () => {
       try {
         const data = await fetchLocalExplanation(emailId);
+        if (!active) return;
         setExplanation(data);
+        onExplanationStateChange?.({ status: 'loaded', data });
       } catch {
+        if (!active) return;
         setError('Unable to load local explanation for this email.');
+        onExplanationStateChange?.({ status: 'unavailable', data: null });
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
     loadExpl();
-  }, [emailId]);
+    return () => { active = false; };
+  }, [emailId, onExplanationStateChange]);
 
   if (loading) return <LoadingState message="Loading local explanation..." />;
   if (error) return <ErrorState message={error} />;
-  if (!explanation || explanation.model_failed) return <ErrorState message="No local explanation available for this case." />;
+  if (!explanation) return <ErrorState message="No local explanation available for this case." />;
   const features = explanation.top_features || [];
   const chartData = [...features]
     .slice(0, 8)
@@ -50,8 +63,13 @@ const LocalExplanationPanel = ({ emailId }) => {
   return (
     <VuiBox className="explanation-stack">
       <VuiBox className="explanation-summary">
-        {explanation.human_summary}
+        {explanation.human_summary || 'A human-readable explanation summary is unavailable for this decision.'}
       </VuiBox>
+      {explanation.model_failed || explanation.pipeline_status === 'explanation_unavailable_review_required' ? (
+        <StatusBanner tone="warning" title="Explanation unavailable">
+          Explanation generation did not complete for this prediction. Review the email evidence manually.
+        </StatusBanner>
+      ) : null}
       {explanation.pipeline_status === 'unsafe_incomplete_features' ? (
         <StatusBanner tone="warning" title="Untrusted explanation context">
           Training preprocessing alignment is incomplete. This does not prove phishing; analyst review is required.
@@ -106,12 +124,16 @@ const LocalExplanationPanel = ({ emailId }) => {
         </div> : <EmptyState message="No trusted raw contribution details available." />}
       </VuiBox>
       
-      <VuiTypography variant="caption" color="text" className="explanation-metadata">
-        Explanation generated using: {explanation.explainer_type}
-      </VuiTypography>
-      <VuiTypography variant="caption" color="text">
-        Explainer: {explanation.explainer_type} | Model Version: {explanation.model_version}
-      </VuiTypography>
+      <VuiBox className="explanation-metadata detail-grid">
+        <VuiTypography variant="caption" color="text">Snapshot ID</VuiTypography>
+        <VuiTypography variant="caption" color="text">{explanation.snapshot_id || 'Not captured'}</VuiTypography>
+        <VuiTypography variant="caption" color="text">Model Version</VuiTypography>
+        <VuiTypography variant="caption" color="text">{explanation.model_version || 'Unavailable'}</VuiTypography>
+        <VuiTypography variant="caption" color="text">Explainer Method</VuiTypography>
+        <VuiTypography variant="caption" color="text">{explanation.explainer_type || 'Unavailable'}</VuiTypography>
+        <VuiTypography variant="caption" color="text">Generated</VuiTypography>
+        <VuiTypography variant="caption" color="text">{formatTimestamp(explanation.created_at)}</VuiTypography>
+      </VuiBox>
       <div className="governance-note">Feature contributions describe model influence and are not proof that an email is malicious.</div>
     </VuiBox>
   );

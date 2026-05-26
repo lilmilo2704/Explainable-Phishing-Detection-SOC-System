@@ -10,6 +10,12 @@ import { VuiBox } from '../components/vision';
 
 const RISK_COLORS = { low: 'var(--chart-axis)', medium: 'var(--warning)', high: 'var(--danger)', critical: 'var(--critical)' };
 
+const providerLabel = (source) => {
+  if (source === 'mock') return 'mock fixture mailbox';
+  if (source === 'gmail') return 'Gmail mailbox';
+  return source ? `${source.replaceAll('_', ' ')} mailbox` : 'configured mailbox';
+};
+
 const Overview = () => {
   const [summary, setSummary] = useState(null);
   const [emails, setEmails] = useState([]);
@@ -80,16 +86,18 @@ const Overview = () => {
   if (loading) return <VuiBox className="page-content"><LoadingState message="Loading security overview..." /></VuiBox>;
   if (error || !summary) return <VuiBox className="page-content"><ErrorState message={error || 'Unable to load overview data. Retry.'} /></VuiBox>;
 
+  const mailboxLabel = providerLabel(summary.mailbox_source);
+
   return (
     <VuiBox className="page-content">
-      <PageHeader title="Overview" description="Operational summary of scanned email risk, quarantine activity, and pending analyst review." />
+      <PageHeader title="Overview" description={`Operational summary of ${mailboxLabel} risk, quarantine activity, and pending analyst review.`} />
       {!readiness?.safe_for_live_prediction ? (
         <StatusBanner tone="warning" title="Model pipeline incomplete">
           Predictions are recorded as needs-review shadow-mode results until training preprocessing artifacts validate.
         </StatusBanner>
       ) : null}
-      <StatusBanner tone="info" title="Live operational metrics">
-        Dashboard counts below are calculated from local mailbox records. Research benchmark fidelity is shown separately in Model Monitoring.
+      <StatusBanner tone="info" title="Operational metrics">
+        Dashboard counts below are calculated from locally stored {mailboxLabel} records. Research benchmark fidelity is shown separately in Model Monitoring.
       </StatusBanner>
 
       <VuiBox className="grid-cards">
@@ -104,7 +112,7 @@ const Overview = () => {
       </VuiBox>
 
       <VuiBox className="grid-2" style={{ marginBottom: 16 }}>
-        <ModelReadinessPanel readiness={readiness} />
+        <ModelReadinessPanel readiness={readiness} mailboxSource={summary.mailbox_source} />
         <SyncStatusPanel syncStatus={syncStatus} />
       </VuiBox>
 

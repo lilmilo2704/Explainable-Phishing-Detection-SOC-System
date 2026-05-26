@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.api import endpoints
 import init_db as db_init
 
 
@@ -24,10 +25,12 @@ def test_emails_and_local_explanation_flow():
     detail = client.get(f"/emails/{email_id}")
     assert detail.status_code == 200
     assert detail.json()["id"] == email_id
+    assert "body" not in detail.json()
 
     exp = client.get(f"/emails/{email_id}/local-explanation")
     assert exp.status_code == 200
     assert "human_summary" in exp.json()
+    assert exp.json()["snapshot_id"]
 
 
 def test_scan_email_and_scan_batch():
@@ -49,6 +52,45 @@ def test_scan_email_and_scan_batch():
     batch = client.post("/scan-batch", json={"emails": [payload, payload]})
     assert batch.status_code == 200
     assert batch.json()["total"] == 2
+
+
+def test_scan_existing_case_uses_stored_content_not_client_replacement(monkeypatch):
+    stored = client.get("/emails/email_003").json()
+    captured = {}
+
+    def predict(payload):
+        captured.update(payload)
+        return {
+            "prediction": "needs_review",
+            "confidence": 0.0,
+            "risk_level": "unknown",
+            "recommended_action": "review",
+            "model_name": "Random Forest v1",
+            "model_version": "random_forest_v1",
+            "teacher_model_id": "random_forest_v1",
+            "surrogate_model_id": "ebm_random_forest_v1",
+            "explanation_version": "ebm_random_forest_v1",
+            "pipeline_status": "test",
+            "trusted_prediction": False,
+            "explanation": {"top_reasons": ["Stored evidence only"], "raw_feature_contributions": []},
+            "explanation_snapshot": {"top_reasons": ["Stored evidence only"]},
+        }
+
+    monkeypatch.setattr(endpoints.model_manager, "predict_email", predict)
+    response = client.post(
+        "/scan-email",
+        json={
+            "email_id": "email_003",
+            "subject": "Client replacement",
+            "body": "Client-controlled full message content",
+            "sender": "attacker@example.com",
+        },
+    )
+    assert response.status_code == 200
+    assert captured["email_id"] == "email_003"
+    assert captured["subject"] == stored["subject"]
+    assert captured["body"] == stored["body_preview"]
+    assert captured["body"] != "Client-controlled full message content"
 
 
 def test_feedback_and_quarantine_release_flow():

@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -30,6 +31,22 @@ router = APIRouter()
 
 def _live_source(requested_source: str | None) -> str:
     return requested_source or get_default_mailbox_provider_name()
+
+
+def _live_gmail_actions_enabled() -> bool:
+    live_actions_enabled = os.getenv("ALLOW_LIVE_GMAIL_ACTIONS", "false").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    shadow_mode_disabled = os.getenv("SHADOW_MODE", "true").strip().lower() in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }
+    return live_actions_enabled and shadow_mode_disabled
 
 
 def _serialize_list_email(email: Any, prediction: Any) -> dict[str, Any]:
@@ -68,6 +85,22 @@ def _scan_email_with_manager(payload: Dict[Any, Any]) -> Dict[str, Any]:
     result["email_id"] = payload.get("email_id", "scan_new")
     result["local_explanation_available"] = bool(result.get("explanation"))
     return result
+
+
+def _stored_email_scan_payload(email: Any) -> dict[str, Any]:
+    return {
+        "email_id": email.id,
+        "subject": email.subject or "",
+        "body": email.body or email.body_preview or "",
+        "sender": email.sender or "",
+        "reply_to": email.reply_to or "",
+        "urls": email.urls or [],
+        "attachments": email.attachments or [],
+        "url_count": email.url_count,
+        "attachment_count": email.attachment_count,
+        "has_links": email.has_links,
+        "has_attachment": email.has_attachment,
+    }
 
 
 @router.get("/dashboard/summary")
@@ -134,9 +167,10 @@ def get_email_detail(email_id: str, db: Session = Depends(get_db)):
 @router.post("/scan-email")
 def scan_email(payload: Dict[Any, Any], db: Session = Depends(get_db)):
     try:
-        result = _scan_email_with_manager(payload)
         email_id = payload.get("email_id")
         email = data_service.get_email_by_id(db, email_id) if email_id else None
+        scan_payload = _stored_email_scan_payload(email) if email else payload
+        result = _scan_email_with_manager(scan_payload)
         if email:
             prediction = data_service.create_prediction_snapshot(db, email_id, result)
             explanation = result.get("explanation", {})
@@ -269,15 +303,24 @@ def get_mailbox_sync_status(
 def get_local_explanation(email_id: str, db: Session = Depends(get_db)):
     explanation = data_service.get_local_explanation_by_email_id(db, email_id)
     if explanation:
+        explanation_failed = explanation.pipeline_status == "explanation_unavailable_review_required"
         return {
             "id": explanation.id,
+            "snapshot_id": explanation.snapshot_id,
             "email_id": explanation.email_id,
             "prediction_id": explanation.prediction_id,
             "explainer_type": explanation.explainer_type,
             "model_version": explanation.model_version,
             "human_summary": explanation.human_summary,
             "top_features": explanation.top_features,
+            "model_failed": explanation_failed,
+            "failure_stage": "local_explanation_generation" if explanation_failed else None,
             "pipeline_status": explanation.pipeline_status,
+            "uncertainty_notice": (
+                "This is an explanation availability warning, not evidence that the email is malicious."
+                if explanation_failed
+                else None
+            ),
             "created_at": explanation.created_at,
         }
     email = data_service.get_email_by_id(db, email_id)
@@ -299,11 +342,13 @@ def get_local_explanation(email_id: str, db: Session = Depends(get_db)):
     )
     details = result.get("explanation", {})
     return {
+        "snapshot_id": None,
         "email_id": email_id,
         "explainer_type": result.get("surrogate_model_name", "EBM surrogate"),
         "model_version": result.get("explanation_version"),
         "human_summary": " ".join(details.get("top_reasons", [])),
         "top_features": details.get("raw_feature_contributions", []),
+        "model_failed": bool(details.get("model_failed", False)),
         "pipeline_status": result.get("pipeline_status"),
         "uncertainty_notice": details.get("uncertainty_notice"),
     }
@@ -339,9 +384,20 @@ def submit_feedback(email_id: str, payload: FeedbackCreateSchema, db: Session = 
         actor=payload.submitted_by or "user",
         action_type="user_feedback_submitted",
         email_id=email_id,
-        new_state={"feedback_id": feedback.id, "review_status": feedback.review_status},
+        new_state={
+            "feedback_id": feedback.id,
+            "review_status": feedback.review_status,
+            "explanation_snapshot_id": feedback.explanation_snapshot_id,
+        },
+        explanation_snapshot_id=feedback.explanation_snapshot_id,
     )
-    return {"feedback_id": feedback.id, "email_id": feedback.email_id, "review_status": feedback.review_status}
+    return {
+        "feedback_id": feedback.id,
+        "email_id": feedback.email_id,
+        "prediction_id": feedback.prediction_id,
+        "explanation_snapshot_id": feedback.explanation_snapshot_id,
+        "review_status": feedback.review_status,
+    }
 
 
 @router.patch("/feedback/{feedback_id}/review")
@@ -350,33 +406,29 @@ def review_feedback(feedback_id: str, payload: FeedbackReviewSchema, db: Session
     if not feedback:
         raise HTTPException(status_code=404, detail="Feedback not found")
     previous_review_status = feedback.review_status
-    if payload.review_status not in {"confirmed", "rejected"}:
-        raise HTTPException(status_code=400, detail="Analyst review status must be confirmed or rejected.")
-    derived = payload.error_type
-    if not derived and payload.analyst_label and feedback.original_prediction:
-        labels = {
-            ("phishing", "legitimate"): "false_positive",
-            ("legitimate", "phishing"): "false_negative",
-            ("phishing", "phishing"): "true_positive",
-            ("legitimate", "legitimate"): "true_negative",
-        }
-        derived = labels.get((feedback.original_prediction, payload.analyst_label))
-    reviewed = data_service.review_feedback_case(
-        db,
-        feedback_id=feedback_id,
-        analyst_label=payload.analyst_label,
-        error_type=derived,
-        reason_category=payload.reason_category,
-        review_status=payload.review_status,
-        actor=payload.actor,
-    )
+    try:
+        reviewed = data_service.review_feedback_case(
+            db,
+            feedback_id=feedback_id,
+            analyst_label=payload.analyst_label,
+            reason_category=payload.reason_category,
+            review_status=payload.review_status,
+            actor=payload.actor,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     data_service.create_audit_event(
         db,
         actor=payload.actor,
         action_type="analyst_feedback_review",
         email_id=feedback.email_id,
         previous_state={"review_status": previous_review_status},
-        new_state={"review_status": reviewed.review_status, "error_type": reviewed.error_type},
+        new_state={
+            "review_status": reviewed.review_status,
+            "error_type": reviewed.error_type,
+            "explanation_snapshot_id": reviewed.explanation_snapshot_id,
+        },
+        explanation_snapshot_id=reviewed.explanation_snapshot_id,
     )
     return {"status": "success", "feedback_id": feedback_id, "updated": reviewed.id}
 
@@ -387,11 +439,24 @@ def _mailbox_action(
     email = data_service.get_email_by_id(db, email_id)
     if not email:
         raise HTTPException(status_code=404, detail="Email not found")
+    request = payload or MailboxActionSchema()
+    stored_provider = (email.mailbox_source or "").strip().lower()
+    requested_provider = (request.provider or "").strip().lower()
+    if stored_provider and requested_provider and requested_provider != stored_provider:
+        raise HTTPException(
+            status_code=400,
+            detail="Mailbox action provider must match the email's stored mailbox source.",
+        )
+    provider_name = stored_provider or requested_provider or get_default_mailbox_provider_name()
+    if provider_name == "gmail" and not _live_gmail_actions_enabled():
+        raise HTTPException(
+            status_code=403,
+            detail="Live Gmail mailbox actions require ALLOW_LIVE_GMAIL_ACTIONS=true and SHADOW_MODE=false.",
+        )
     desired = "quarantined" if action == "quarantine" else "released"
     if email.quarantine_status == desired:
         return {"status": "success", "action": desired, "email_id": email_id, "changed": False}
-    request = payload or MailboxActionSchema()
-    provider = get_mailbox_provider(request.provider or email.mailbox_source)
+    provider = get_mailbox_provider(provider_name)
     operation = provider.quarantine_message if action == "quarantine" else provider.release_message
     if email.mailbox_message_id and not operation(email.mailbox_message_id):
         raise HTTPException(status_code=409, detail=f"Mailbox {action} action could not be completed.")
@@ -470,7 +535,7 @@ def get_model_health(
         "accuracy_fidelity": 0.926,
         "f1_fidelity": 0.928,
         "error_fidelity": 0.7673,
-        "notice": "These fixed fidelity results are benchmark metrics, not live Gmail accuracy.",
+        "notice": "These fixed fidelity results are benchmark metrics, not live mailbox accuracy.",
     }
     return {
         "model_name": active["teacher_model_name"],
@@ -513,7 +578,7 @@ def get_model_versions():
 def get_monitoring_fidelity():
     return {
         "metric_source": "research_benchmark",
-        "notice": "Benchmark surrogate fidelity metrics; not live Gmail performance.",
+        "notice": "Benchmark surrogate fidelity metrics; not live mailbox performance.",
         "accuracy_fidelity": 0.926,
         "f1_fidelity": 0.928,
         "error_fidelity": 0.7673,

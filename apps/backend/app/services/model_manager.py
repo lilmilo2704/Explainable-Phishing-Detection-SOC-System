@@ -238,6 +238,8 @@ class ModelManager:
                 )
             contributions.sort(key=lambda row: abs(row["contribution"]), reverse=True)
             top = contributions[:8]
+            if not top:
+                return {"top_reasons": [], "raw_feature_contributions": [], "model_failed": True}
             return {
                 "top_reasons": [row["human_reason"] for row in top[:3]],
                 "raw_feature_contributions": top,
@@ -280,6 +282,54 @@ class ModelManager:
             "explanation_snapshot": explanation,
         }
 
+    def _explanation_unavailable_result(self, readiness: dict[str, Any]) -> dict[str, Any]:
+        teacher_id = self._active_config["teacher_model_id"]
+        surrogate_id = self._active_config["surrogate_model_id"]
+        pipeline_warning = (
+            "The detector completed, but no usable local explanation was produced. "
+            "Keep this email in analyst review; no automatic action is permitted."
+        )
+        failed_readiness = {
+            **readiness,
+            "explanation_available": False,
+            "safe_for_live_prediction": False,
+            "warnings": [*readiness.get("warnings", []), pipeline_warning],
+            "recommended_action_if_unsafe": pipeline_warning,
+        }
+        summary = (
+            "The email requires analyst review because an explanation could not be generated for the model result. "
+            "No trusted automatic classification was made."
+        )
+        explanation = {
+            "top_reasons": [summary],
+            "raw_feature_contributions": [],
+            "model_failed": True,
+            "failure_stage": "local_explanation_generation",
+            "pipeline_warning": pipeline_warning,
+            "uncertainty_notice": (
+                "This is an explanation availability warning, not evidence that the email is malicious."
+            ),
+        }
+        return {
+            "prediction": "needs_review",
+            "confidence": 0.0,
+            "phishing_probability": None,
+            "risk_level": "unknown",
+            "recommended_action": "review",
+            "model_name": MODEL_REGISTRY[teacher_id]["display_name"],
+            "model_version": teacher_id,
+            "teacher_model_id": teacher_id,
+            "surrogate_model_id": surrogate_id,
+            "surrogate_model_name": MODEL_REGISTRY[surrogate_id]["display_name"],
+            "feature_extractor_version": f"v1_{N_TOTAL}f_validated",
+            "explanation_version": surrogate_id,
+            "trusted_prediction": False,
+            "pipeline_status": "explanation_unavailable_review_required",
+            "readiness": failed_readiness,
+            "explanation": explanation,
+            "explanation_snapshot": explanation,
+        }
+
     def predict_email(self, email: dict[str, Any]) -> dict[str, Any]:
         teacher_id = self._active_config["teacher_model_id"]
         surrogate_id = self._active_config["surrogate_model_id"]
@@ -311,6 +361,8 @@ class ModelManager:
         else:
             risk_level, action = "low", "allow"
         explanation = self.explain_with_active_surrogate(vector, raw_features)
+        if explanation.get("model_failed"):
+            return self._explanation_unavailable_result(readiness)
         return {
             "prediction": prediction,
             "confidence": round(confidence, 4),
@@ -359,11 +411,22 @@ class ModelManager:
             "surrogate_name": MODEL_REGISTRY[surrogate_id]["display_name"],
             "surrogate_version": surrogate_id,
             "metric_source": "research_benchmark",
-            "benchmark_notice": "Fidelity values below are research benchmark metrics, not live Gmail performance.",
+            "benchmark_notice": "Fidelity values below are research benchmark metrics, not live mailbox performance.",
             "accuracy_fidelity": 0.926,
             "f1_fidelity": 0.928,
             "error_fidelity": 0.7673,
             "top_features": top_features[:15],
+            "failure_patterns": {
+                "source": "analyst_confirmed_operational_feedback",
+                "status": "not_computed",
+                "derived_from_analyst_confirmed_feedback": False,
+                "false_positives": [],
+                "false_negatives": [],
+                "message": (
+                    "Operational failure patterns have not been computed from analyst-confirmed feedback. "
+                    "No live false-positive or false-negative pattern claims are shown."
+                ),
+            },
             "generated_at": datetime.now(UTC).isoformat(),
         }
 
